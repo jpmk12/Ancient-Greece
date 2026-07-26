@@ -33,12 +33,12 @@ export const CFG = {
   ],
 
   // City buildings (solid). `kind` drives colour + later gameplay role.
-  // Production buildings accept a matching raw resource when you deposit.
+  // Production buildings take a raw input and make a finished good you collect.
   buildings: [
-    { key: 'press',     name: 'Olive Press', kind: 'press',   x: 16, y: 14, w: 3, h: 2, input: 'olives' },
-    { key: 'winery',    name: 'Winery',      kind: 'winery',  x: 21, y: 14, w: 3, h: 2, input: 'grapes' },
-    { key: 'granary',   name: 'Granary',     kind: 'granary', x: 26, y: 14, w: 3, h: 2, input: 'fish'   },
-    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 21, w: 3, h: 2 },
+    { key: 'press',     name: 'Olive Press', kind: 'press',   x: 16, y: 14, w: 3, h: 2, input: 'olives', output: 'oil'  },
+    { key: 'winery',    name: 'Winery',      kind: 'winery',  x: 21, y: 14, w: 3, h: 2, input: 'grapes', output: 'wine' },
+    { key: 'granary',   name: 'Granary',     kind: 'granary', x: 26, y: 14, w: 3, h: 2, input: 'fish',   output: 'food' },
+    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 21, w: 3, h: 2, sells: true },
     { key: 'acropolis', name: 'Acropolis',   kind: 'acropolis', x: 24, y: 19, w: 5, h: 4 },
   ],
 
@@ -60,7 +60,12 @@ export const CFG = {
 
   node:    { max: 12, regen: 0.9 },        // stock capacity + regen/sec
   gather:  { range: 1.6, interval: 0.20 }, // proximity + seconds per unit
-  deposit: { range: 1.8, interval: 0.10 }, // proximity + seconds per unit
+  deposit: { range: 1.8, interval: 0.10 }, // proximity + seconds per unit (drop off + pick up)
+  sell:    { interval: 0.09 },             // seconds per unit sold at the Agora
+
+  // Workshop processing: raw input -> finished good.
+  production: { ratePerSec: 0.75, rawPerGood: 2, outputCap: 30 },
+  startDrachmas: 30,
 
   // The sea occupies cells with y >= this (a coastline along the south).
   seaFromY: 37,
@@ -77,6 +82,13 @@ export const CFG = {
     olives: { icon: '🫒', color: '#6b8e23', label: 'Olives' },
     grapes: { icon: '🍇', color: '#7b3f6e', label: 'Grapes' },
     fish:   { icon: '🐟', color: '#3d7ea6', label: 'Fish'   },
+  },
+
+  // Finished goods produced by the workshops and sold at the Agora.
+  goodsMeta: {
+    oil:  { icon: '🫗', color: '#d9a441', label: 'Olive Oil', sell: 9  },
+    wine: { icon: '🍷', color: '#8e2b4c', label: 'Wine',      sell: 12 },
+    food: { icon: '🍞', color: '#c9772f', label: 'Food',      sell: 4  },
   },
 
   colors: {

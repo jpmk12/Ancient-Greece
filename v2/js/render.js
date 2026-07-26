@@ -101,8 +101,8 @@ function drawBuilding(ctx, b, g) {
   const c = CFG.colors.buildings[b.kind] || CFG.colors.buildings.agora;
   const height = b.kind === 'acropolis' ? 60 : 40;
 
-  // Highlight the workshop you're currently unloading into.
-  const active = g && g._activeBuilding === b.key;
+  // Highlight the workshop you're unloading into, or the Agora while selling.
+  const active = g && (g._activeBuilding === b.key || (b.sells && g._sellingNow));
   if (active) {
     ctx.save();
     ctx.shadowColor = 'rgba(150,255,130,0.9)';
@@ -131,19 +131,25 @@ function drawBuilding(ctx, b, g) {
   ctx.font = 'bold 12px system-ui, sans-serif';
   ctx.fillText(iconFor(b.kind) + ' ' + b.name, center.x, topY - 20);
 
-  // Input buffer readout for production buildings.
+  // Readout tag: production buffers (input ▸ output), or the Agora sell prompt.
   if (b.input && g && g.buildings[b.key]) {
-    const stock = Math.floor(g.buildings[b.key].stock);
-    const m = CFG.resourceMeta[b.input];
-    ctx.font = 'bold 12px system-ui, sans-serif';
-    const label = `${m.icon} ${stock}`;
-    const w = ctx.measureText(label).width + 14;
-    ctx.fillStyle = 'rgba(20,14,6,0.72)';
-    roundRect(ctx, center.x - w / 2, topY - 14, w, 20, 10); ctx.fill();
-    ctx.fillStyle = '#e8c86a';
-    ctx.fillText(label, center.x, topY);
+    const bb = g.buildings[b.key];
+    const im = CFG.resourceMeta[b.input], om = CFG.goodsMeta[b.output];
+    drawTag(ctx, center.x, topY, `${im.icon}${Math.floor(bb.stock)}  ▸  ${om.icon}${Math.floor(bb.outStock)}`);
+  } else if (b.sells && g) {
+    drawTag(ctx, center.x, topY, g._sellingNow ? '💰 selling…' : '💰 sell goods');
   }
   ctx.textAlign = 'left';
+}
+
+function drawTag(ctx, cx, topY, label) {
+  ctx.font = 'bold 12px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  const w = ctx.measureText(label).width + 16;
+  ctx.fillStyle = 'rgba(20,14,6,0.74)';
+  roundRect(ctx, cx - w / 2, topY - 14, w, 20, 10); ctx.fill();
+  ctx.fillStyle = '#e8c86a';
+  ctx.fillText(label, cx, topY);
 }
 
 // ---- Harvest nodes (olive grove / vineyard / fishing dock) ----------------
@@ -307,8 +313,8 @@ function drawPlayer(ctx, pl) {
   // Carry bubble above the head (shows the load you're hauling).
   if (pl.carried > 0) {
     let domType = 'olives', domN = -1;
-    for (const k of ['olives', 'grapes', 'fish']) if (pl.carry[k] > domN) { domN = pl.carry[k]; domType = k; }
-    const icon = CFG.resourceMeta[domType].icon;
+    for (const k of ['olives', 'grapes', 'fish', 'oil', 'wine', 'food']) if (pl.carry[k] > domN) { domN = pl.carry[k]; domType = k; }
+    const icon = (CFG.resourceMeta[domType] || CFG.goodsMeta[domType]).icon;
     const label = `${icon} ${pl.carried}`;
     ctx.font = 'bold 13px system-ui, sans-serif'; ctx.textAlign = 'center';
     const w = ctx.measureText(label).width + 16;
@@ -372,14 +378,29 @@ function drawHud(ctx, state, viewW, viewH) {
     ctx.globalAlpha = 1;
   }
 
+  drawDrachmas(ctx, g, viewW);
   drawBackpack(ctx, pl, viewH);
   ctx.restore();
   ctx.textAlign = 'left';
 }
 
-// Bottom-left backpack panel: per-resource counts + capacity bar.
+// Top-right coin purse.
+function drawDrachmas(ctx, g, viewW) {
+  const label = `🪙 ${Math.floor(g.drachmas)}`;
+  ctx.font = 'bold 17px system-ui, sans-serif';
+  const w = ctx.measureText(label).width + 26;
+  const x = viewW - w - 16, y = 12;
+  ctx.fillStyle = 'rgba(20,14,6,0.82)';
+  roundRect(ctx, x, y, w, 34, 17); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,200,106,0.6)'; ctx.lineWidth = 2;
+  roundRect(ctx, x, y, w, 34, 17); ctx.stroke();
+  ctx.fillStyle = '#e8c86a'; ctx.textAlign = 'center';
+  ctx.fillText(label, x + w / 2, y + 23);
+}
+
+// Bottom-left backpack panel: raw + goods counts and a capacity bar.
 function drawBackpack(ctx, pl, viewH) {
-  const x = 16, y = viewH - 92, w = 208, h = 76;
+  const x = 16, y = viewH - 116, w = 224, h = 100;
   ctx.fillStyle = 'rgba(20,14,6,0.82)';
   roundRect(ctx, x, y, w, h, 12); ctx.fill();
   ctx.strokeStyle = pl.full ? '#e05a4f' : 'rgba(232,200,106,0.5)';
@@ -393,18 +414,17 @@ function drawBackpack(ctx, pl, viewH) {
   ctx.fillStyle = pl.full ? '#e05a4f' : '#cdbf98';
   ctx.fillText(`${pl.carried} / ${pl.carryCap}`, x + w - 12, y + 20);
 
-  // resource counts
-  ctx.textAlign = 'center';
+  // two rows: raw resources, then finished goods
+  ctx.textAlign = 'left';
   ctx.font = '14px system-ui, sans-serif';
-  const items = [['🫒', pl.carry.olives], ['🍇', pl.carry.grapes], ['🐟', pl.carry.fish]];
-  items.forEach(([ic, n], i) => {
-    const cx = x + 44 + i * 60;
-    ctx.fillStyle = '#fff';
-    ctx.fillText(`${ic} ${n}`, cx, y + 44);
-  });
+  ctx.fillStyle = '#fff';
+  const raw = [['🫒', pl.carry.olives], ['🍇', pl.carry.grapes], ['🐟', pl.carry.fish]];
+  const goods = [['🫗', pl.carry.oil], ['🍷', pl.carry.wine], ['🍞', pl.carry.food]];
+  raw.forEach(([ic, n], i) => ctx.fillText(`${ic} ${n}`, x + 14 + i * 70, y + 44));
+  goods.forEach(([ic, n], i) => ctx.fillText(`${ic} ${n}`, x + 14 + i * 70, y + 66));
 
   // capacity bar
-  const bw = w - 24, bx = x + 12, by = y + 56;
+  const bw = w - 24, bx = x + 12, by = y + 80;
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, bx, by, bw, 8, 4); ctx.fill();
   ctx.fillStyle = pl.full ? '#e05a4f' : '#8fce6b';
   roundRect(ctx, bx, by, bw * (pl.carried / pl.carryCap), 8, 4); ctx.fill();

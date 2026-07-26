@@ -17,13 +17,13 @@ export class Player {
     this.walkPhase = 0;
     this.inside = true;
 
-    // Backpack.
+    // Backpack — holds both raw resources and finished goods.
     this.health = 100;
-    this.carry = { olives: 0, grapes: 0, fish: 0 };
+    this.carry = { olives: 0, grapes: 0, fish: 0, oil: 0, wine: 0, food: 0 };
     this.carryCap = CFG.player.carryCap;
   }
 
-  get carried() { return this.carry.olives + this.carry.grapes + this.carry.fish; }
+  get carried() { let s = 0; for (const k in this.carry) s += this.carry[k]; return s; }
   get full() { return this.carried >= this.carryCap; }
 
   update(dt, input) {
