@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#1a2233" />
+  <title>Aegis of Athens</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" width="1024" height="768"></canvas>
+
+    <!-- Top HUD -->
+    <div id="hud-top">
+      <div id="resource-bar"></div>
+      <div id="status-strip">
+        <span class="stat" id="stat-day">Day 1</span>
+        <span class="stat" id="stat-army">⚔ 0 🏹 0</span>
+        <span class="stat" id="stat-wave">Next assault: —</span>
+        <span class="stat" id="stat-survived">Waves: 0</span>
+        <span class="stat warn hidden-until show-flag" id="stat-food-warn">⚠ Food low!</span>
+      </div>
+    </div>
+
+    <!-- Bottom control dock -->
+    <div id="dock">
+      <button class="dock-btn" id="btn-shop">🏗 Build & Hire</button>
+      <button class="dock-btn" id="btn-sell">💰 Sell Goods</button>
+      <button class="dock-btn on" id="btn-auto">Auto-Sell: ON</button>
+      <button class="dock-btn" id="btn-save">💾 Save</button>
+      <button class="dock-btn" id="btn-pause">⏸</button>
+    </div>
+
+    <!-- Shop panel -->
+    <div id="shop">
+      <div id="shop-header">
+        <span>Agora — Build, Upgrade & Hire</span>
+        <button id="btn-shop-close">✕</button>
+      </div>
+      <div id="shop-body"></div>
+    </div>
+
+    <!-- Toasts -->
+    <div id="toasts"></div>
+
+    <!-- Pause veil -->
+    <div id="pause-veil"><div class="veil-card">Paused</div></div>
+
+    <!-- Start modal -->
+    <div id="start-modal" class="modal">
+      <div class="modal-card">
+        <h1>🏛 Aegis of Athens</h1>
+        <p class="subtitle">A Peloponnesian War survival &amp; strategy game</p>
+        <div class="how">
+          <p><strong>The year is 431 BC.</strong> Sparta marches on Attica. As Athens' last scholar-steward, you must feed the city and hold the walls.</p>
+          <ul>
+            <li><strong>Tap</strong> olive groves 🫒, vineyards 🍇 and fishing docks 🐟 to gather resources.</li>
+            <li>Your <strong>Press, Winery &amp; Granary</strong> turn them into oil, wine and food.</li>
+            <li>Tap the <strong>Agora 🏛</strong> (or hit Sell) to trade oil &amp; wine for drachmas.</li>
+            <li>Spend drachmas to <strong>upgrade walls</strong> and <strong>hire hoplites ⚔ &amp; archers 🏹</strong>.</li>
+            <li>Keep <strong>food</strong> stocked — a hungry army deserts!</li>
+            <li>Survive <strong>12 Spartan assaults</strong> to save the polis.</li>
+          </ul>
+        </div>
+        <div class="modal-btns">
+          <button id="start-play" class="btn-primary">Begin the Defense</button>
+          <button id="start-continue" class="btn-secondary">Continue Saved Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- End modal -->
+    <div id="end-modal" class="modal">
+      <div class="modal-card">
+        <h1 id="end-title">Game Over</h1>
+        <p id="end-msg"></p>
+        <div class="modal-btns">
+          <button id="btn-restart" class="btn-primary">Play Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
