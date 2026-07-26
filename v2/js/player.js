@@ -18,9 +18,16 @@ export class Player {
     this.inside = true;
 
     // Backpack — holds both raw resources and finished goods.
-    this.health = 100;
     this.carry = { olives: 0, grapes: 0, fish: 0, oil: 0, wine: 0, food: 0 };
     this.carryCap = CFG.player.carryCap;
+
+    // Combat.
+    this.health = CFG.playerCombat.maxHealth;
+    this.maxHealth = CFG.playerCombat.maxHealth;
+    this.atkCool = 0;
+    this.invuln = 0;
+    this.hitFlash = 0;
+    this.attacking = 0;
   }
 
   get carried() { let s = 0; for (const k in this.carry) s += this.carry[k]; return s; }

@@ -27,7 +27,7 @@ current playable version until v2 reaches feature parity.
   - **Deposit** raw resources by standing at the matching workshop
     (olives→Press, grapes→Winery, fish→Granary); buffers shown on each building
   - The sea is now impassable — you fish from the shore
-- **Phase 3 — Make & sell on foot ✅ (this build)**
+- **Phase 3 — Make & sell on foot ✅**
   - Workshops **process** their input buffer into finished goods over time
     (olives→oil, grapes→wine, fish→food); each shows `input ▸ output`
   - **Pick up** finished goods by standing at the workshop — the backpack now
@@ -35,8 +35,19 @@ current playable version until v2 reaches feature parity.
   - **Sell** oil, wine & food at the **Agora** for **drachmas**, shown in a
     top-right coin purse with `+₪` floaters
   - Completes the full loop: gather → haul → process → haul → sell
-- Phase 4 — Siege reworked (Spartans, wall defence, personal danger)
-- Phase 5 — Progression & polish (porters/donkey, minimap, day/night, SFX)
+- **Phase 4 — Siege reworked ✅ (this build)**
+  - **Spartan waves** march from the north and batter the **city walls**
+    (which have HP, damage tinting, and a HUD bar); a breach ends the game
+  - Hire **hoplites ⚔ & archers 🏹** (bottom-right dock) who auto-defend the
+    ramparts — archers loose arrows, hoplites hold the line
+  - **You can fight too**: a spear auto-strikes nearby Spartans; you have
+    health, and being caught outside during a raid can knock you back to the
+    city (dropping half your load)
+  - **Food feeds the army** — deliver food to the Acropolis to stock the
+    larder; an empty larder starves soldiers into deserting
+  - Escalating waves, drachma rewards per wave, and a **win at 10 waves**;
+    end-game modal with Play Again
+- Phase 5 — Progression & polish (porters/donkey, minimap, day/night, SFX, save)
 
 ## Run it
 

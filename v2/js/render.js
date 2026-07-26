@@ -68,12 +68,16 @@ function drawGround(ctx, viewW, viewH) {
 function drawObjects(ctx, state) {
   const g = state.game;
   const items = [];
+  const wallFrac = g.wall ? g.wall.hp / g.wall.maxHp : 1;
 
-  for (const c of wallCells) items.push({ depth: depthOf(c), fn: () => drawWall(ctx, c) });
+  for (const c of wallCells) items.push({ depth: depthOf(c), fn: () => drawWall(ctx, c, wallFrac) });
   for (const p of CFG.gatePosts) items.push({ depth: depthOf(p), fn: () => drawPost(ctx, p) });
   for (const b of CFG.buildings) items.push({ depth: depthOf(b), fn: () => drawBuilding(ctx, b, g) });
   for (const t of CFG.decoTrees) items.push({ depth: t.x + t.y, fn: () => drawTree(ctx, t, state.time) });
   for (const n of g.nodes) items.push({ depth: n.x + n.y, fn: () => drawNode(ctx, n, g, state.time) });
+  for (const s of g.spartans) items.push({ depth: s.x + s.y, fn: () => drawSpartan(ctx, s, state.time) });
+  for (const h of g.hoplites) items.push({ depth: h.x + h.y, fn: () => drawDefender(ctx, h, state.time) });
+  for (const a of g.archers) items.push({ depth: a.x + a.y, fn: () => drawDefender(ctx, a, state.time) });
 
   const pl = state.player;
   items.push({ depth: pl.x + pl.y, fn: () => drawPlayer(ctx, pl) });
@@ -81,16 +85,20 @@ function drawObjects(ctx, state) {
   items.sort((a, b) => a.depth - b.depth);
   for (const it of items) it.fn();
 
+  drawArrows(ctx, g);
   drawFloaters(ctx, g);
 }
 
-function drawWall(ctx, c) {
+function drawWall(ctx, c, frac) {
   const col = CFG.colors;
-  drawPrism(ctx, c, 34, col.wallTop, col.wallLeft, col.wallRight);
-  // crenellation nub on the top-front corner
+  // damaged walls redden and darken
+  const top = frac < 0.5 ? mix(col.wallTop, '#a05a4a', (0.5 - frac) * 1.4) : col.wallTop;
+  const left = frac < 0.5 ? mix(col.wallLeft, '#6a3a30', (0.5 - frac) * 1.4) : col.wallLeft;
+  const right = frac < 0.5 ? mix(col.wallRight, '#8a4a3c', (0.5 - frac) * 1.4) : col.wallRight;
+  drawPrism(ctx, c, 34, top, left, right);
   const t = proj(c.x + c.w, c.y + c.h);
-  ctx.fillStyle = col.wallTop;
-  ctx.fillRect(t.x - 4, t.y - 34 - 8, 8, 8);
+  ctx.fillStyle = top;
+  if (frac > 0.3 || (c.x + c.y) % 2 === 0) ctx.fillRect(t.x - 4, t.y - 34 - 8, 8, 8); // some crenels crumble
 }
 
 function drawPost(ctx, p) {
@@ -308,7 +316,27 @@ function drawPlayer(ctx, pl) {
   ctx.beginPath(); ctx.arc(0, -32, 6, Math.PI, 0); ctx.fill();
   ctx.fillRect(-8, -32, 16, 2);
 
+  // spear thrust when attacking
+  if (pl.attacking > 0) {
+    ctx.strokeStyle = '#c9c2a0'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(20, -20); ctx.stroke();
+    ctx.fillStyle = '#cfcfcf'; ctx.beginPath(); ctx.moveTo(20, -20); ctx.lineTo(15, -23); ctx.lineTo(16, -17); ctx.closePath(); ctx.fill();
+  }
+
   ctx.restore();
+
+  // hit flash
+  if (pl.hitFlash > 0) {
+    ctx.strokeStyle = `rgba(224,90,79,${pl.hitFlash * 2})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(p.x, p.y - 16, 18, 0, Math.PI * 2); ctx.stroke();
+  }
+  // health bar when hurt
+  if (pl.health < pl.maxHealth) {
+    const f = Math.max(0, pl.health / pl.maxHealth);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(ctx, p.x - 16, p.y - 58, 32, 5, 2); ctx.fill();
+    ctx.fillStyle = f > 0.5 ? '#6fbf73' : f > 0.25 ? '#d9a441' : '#e05a4f';
+    roundRect(ctx, p.x - 16, p.y - 58, 32 * f, 5, 2); ctx.fill();
+  }
 
   // Carry bubble above the head (shows the load you're hauling).
   if (pl.carried > 0) {
@@ -323,6 +351,65 @@ function drawPlayer(ctx, pl) {
     roundRect(ctx, p.x - w / 2, by, w, 22, 11); ctx.fill();
     ctx.fillStyle = '#fff'; ctx.fillText(label, p.x, by + 16);
     ctx.textAlign = 'left';
+  }
+}
+
+// ---- Combatants -----------------------------------------------------------
+function drawSpartan(ctx, s, time) {
+  const p = proj(s.x, s.y);
+  const bob = Math.sin(time * 8 + s.x) * 1.6;
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(p.x, p.y - bob);
+  // body / round shield
+  ctx.fillStyle = '#8a1f1f';
+  ctx.beginPath(); ctx.arc(0, -12, 11, 0, Math.PI * 2); ctx.fill();
+  // lambda emblem
+  ctx.strokeStyle = '#f0e6c8'; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.moveTo(-5, -7); ctx.lineTo(0, -17); ctx.lineTo(5, -7); ctx.stroke();
+  // transverse crest
+  ctx.fillStyle = '#c9302c'; ctx.fillRect(-6, -30, 12, 4);
+  ctx.fillStyle = '#2a2a2a'; ctx.fillRect(-2, -34, 4, 8);
+  // spear
+  ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(9, -26); ctx.lineTo(13, -2); ctx.stroke();
+  ctx.restore();
+  // hp bar
+  const f = s.hp / s.maxHp;
+  if (f < 1) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(p.x - 12, p.y - 40, 24, 4); ctx.fillStyle = '#e05a4f'; ctx.fillRect(p.x - 12, p.y - 40, 24 * f, 4); }
+}
+
+function drawDefender(ctx, u, time) {
+  const p = proj(u.x, u.y);
+  const bob = Math.sin(time * 5 + u.x) * 1.1;
+  const archer = u.kind === 'archer';
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(p.x, p.y - bob);
+  // body
+  ctx.fillStyle = archer ? '#3f6ba8' : '#b8802f';
+  ctx.beginPath(); ctx.arc(0, -11, 9, 0, Math.PI * 2); ctx.fill();
+  // helmet crest
+  ctx.fillStyle = '#e8c24a'; ctx.fillRect(-2, -26, 4, 6);
+  ctx.fillStyle = '#e8c9a0'; ctx.beginPath(); ctx.arc(0, -18, 4, 0, Math.PI * 2); ctx.fill();
+  if (archer) { ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(8, -11, 7, -1, 1); ctx.stroke(); }
+  else { ctx.strokeStyle = '#cfcfcf'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, -24); ctx.lineTo(9, -2); ctx.stroke(); }
+  ctx.restore();
+  const f = u.hp / u.maxHp;
+  if (f < 1) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(p.x - 10, p.y - 32, 20, 3); ctx.fillStyle = '#6fbf73'; ctx.fillRect(p.x - 10, p.y - 32, 20 * f, 3); }
+}
+
+function drawArrows(ctx, g) {
+  ctx.strokeStyle = '#4a3a1a'; ctx.lineWidth = 2;
+  for (const ar of g.arrows) {
+    if (ar.cx == null) continue;
+    const a = proj(ar.cx, ar.cy), b = proj(ar.x, ar.y);
+    const ang = Math.atan2(a.y - b.y, a.x - b.x);
+    ctx.save(); ctx.translate(a.x, a.y); ctx.rotate(ang);
+    ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(5, 0); ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -357,31 +444,77 @@ function drawHud(ctx, state, viewW, viewH) {
   ctx.fillStyle = pl.inside ? '#e8c86a' : '#bfe08a';
   ctx.fillText(label, viewW / 2, 32);
 
-  // transient hint (e.g. "Backpack full")
+  // wall HP bar + wave status
+  drawWallStatus(ctx, g, viewW);
+
+  // transient hint (e.g. "Backpack full") — sits just above the hire dock
   if (g.hint) {
     ctx.globalAlpha = Math.max(0, 1 - g.hint.t / 2.4);
     ctx.fillStyle = 'rgba(160,60,40,0.9)';
     const hw = ctx.measureText(g.hint.text).width + 26;
-    roundRect(ctx, viewW / 2 - hw / 2, 50, hw, 28, 14); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(g.hint.text, viewW / 2, 69);
+    roundRect(ctx, viewW / 2 - hw / 2, viewH - 118, hw, 28, 14); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(g.hint.text, viewW / 2, viewH - 99);
     ctx.globalAlpha = 1;
   }
 
-  // control hint (fades early)
-  if (state.time < 14) {
-    ctx.globalAlpha = Math.max(0, 1 - state.time / 14);
-    ctx.fillStyle = 'rgba(20,14,6,0.6)';
-    const hint = 'Walk to a grove, vineyard or dock to gather  •  bring it to the workshops';
-    const hw = ctx.measureText(hint).width + 24;
-    roundRect(ctx, viewW / 2 - hw / 2, viewH - 52, hw, 30, 15); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.fillText(hint, viewW / 2, viewH - 32);
-    ctx.globalAlpha = 1;
-  }
-
+  drawToasts(ctx, g, viewW);
   drawDrachmas(ctx, g, viewW);
+  drawArmyFood(ctx, g, viewW);
   drawBackpack(ctx, pl, viewH);
   ctx.restore();
   ctx.textAlign = 'left';
+}
+
+// Wall HP + wave countdown / "under assault" banner, top-centre.
+function drawWallStatus(ctx, g, viewW) {
+  const cx = viewW / 2, y = 52, bw = 300;
+  const f = g.wall.hp / g.wall.maxHp;
+  ctx.fillStyle = 'rgba(20,14,6,0.7)';
+  roundRect(ctx, cx - bw / 2 - 8, y - 6, bw + 16, 40, 12); ctx.fill();
+  // bar
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(ctx, cx - bw / 2, y + 12, bw, 12, 6); ctx.fill();
+  ctx.fillStyle = f > 0.5 ? '#8fce6b' : f > 0.25 ? '#d9a441' : '#e05a4f';
+  roundRect(ctx, cx - bw / 2, y + 12, bw * f, 12, 6); ctx.fill();
+  ctx.font = 'bold 12px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff'; ctx.fillText(`🛡 CITY WALLS  ${Math.ceil(g.wall.hp)} / ${g.wall.maxHp}`, cx, y + 8);
+
+  // wave status
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  let text, color;
+  if (g.inWave) { text = `⚔ WAVE ${g.waveIndex} — ${g.spartans.length} Spartans at the wall`; color = '#e05a4f'; }
+  else { const s = Math.max(0, Math.ceil(g.nextWaveAt - g.time)); text = `Next assault in ${s}s  ·  Waves survived ${g.waveIndex}/${CFG.waves.victoryWave}`; color = s <= 10 ? '#e0a83a' : '#cdbf98'; }
+  const w = ctx.measureText(text).width + 22;
+  ctx.fillStyle = 'rgba(20,14,6,0.7)';
+  roundRect(ctx, cx - w / 2, y + 40, w, 24, 12); ctx.fill();
+  ctx.fillStyle = color; ctx.fillText(text, cx, y + 56);
+}
+
+// Army + larder readout, top-right under the coin purse.
+function drawArmyFood(ctx, g, viewW) {
+  const label = `⚔ ${g.hoplites.length}  🏹 ${g.archers.length}   🍞 ${Math.floor(g.cityFood)}`;
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  const w = ctx.measureText(label).width + 24;
+  const x = viewW - w - 16, y = 52;
+  ctx.fillStyle = 'rgba(20,14,6,0.82)';
+  roundRect(ctx, x, y, w, 30, 15); ctx.fill();
+  ctx.fillStyle = g.cityFood <= 0 ? '#e05a4f' : '#cdbf98'; ctx.textAlign = 'center';
+  ctx.fillText(label, x + w / 2, y + 20);
+}
+
+function drawToasts(ctx, g, viewW) {
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 14px system-ui, sans-serif';
+  g.toasts.forEach((t, i) => {
+    const y = 128 + i * 32;
+    ctx.globalAlpha = Math.min(1, Math.max(0, (t.life - t.t) / 0.5));
+    const w = ctx.measureText(t.text).width + 26;
+    const border = t.kind === 'good' ? '#6fbf73' : t.kind === 'bad' ? '#e05a4f' : t.kind === 'warn' ? '#e0a83a' : '#b8912f';
+    ctx.fillStyle = 'rgba(20,14,6,0.9)';
+    roundRect(ctx, viewW / 2 - w / 2, y, w, 26, 13); ctx.fill();
+    ctx.strokeStyle = border; ctx.lineWidth = 2; roundRect(ctx, viewW / 2 - w / 2, y, w, 26, 13); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillText(t.text, viewW / 2, y + 18);
+  });
+  ctx.globalAlpha = 1;
 }
 
 // Top-right coin purse.
@@ -432,6 +565,12 @@ function drawBackpack(ctx, pl, viewH) {
 
 // ---- helpers --------------------------------------------------------------
 function blob(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+function hexToRgb(hex) { const n = parseInt(hex.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+function mix(a, b, t) {
+  t = Math.max(0, Math.min(1, t));
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return `rgb(${Math.round(A.r + (B.r - A.r) * t)},${Math.round(A.g + (B.g - A.g) * t)},${Math.round(A.b + (B.b - A.b) * t)})`;
+}
 function roundRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();

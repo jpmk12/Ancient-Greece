@@ -24,7 +24,27 @@ export class Game {
       if (b.input) this.buildings[b.key] = { key: b.key, input: b.input, output: b.output, stock: 0, outStock: 0 };
     }
     this.agora = CFG.buildings.find(b => b.sells);
+    this.acropolis = CFG.buildings.find(b => b.kind === 'acropolis');
     this.drachmas = CFG.startDrachmas;
+
+    // ---- Defence ----
+    this.wall = { hp: CFG.wall.maxHp, maxHp: CFG.wall.maxHp, level: 1 };
+    this.spartans = [];
+    this.hoplites = [];
+    this.archers = [];
+    this.arrows = [];
+    this.cityFood = CFG.cityFood.start;
+    this.waveIndex = 0;
+    this.nextWaveAt = CFG.waves.firstWaveAt;
+    this.inWave = false;
+    this.over = false;
+    this.won = false;
+    this.overReason = '';
+    this.toasts = [];
+    this._desertAcc = 0;
+    // Start with a small garrison.
+    this.hireHoplite(true);
+    this.archers.push(this._makeArcher()); this._positionDefenders();
 
     this.floaters = [];      // world-space floating texts
     this.hint = null;        // transient guidance ({ text, t })
@@ -40,11 +60,19 @@ export class Game {
 
   setHint(text) { this.hint = { text, t: 0 }; }
 
+  toast(text, kind = 'info') {
+    this.toasts.push({ id: _uid++, text, kind, t: 0, life: 3.2 });
+    if (this.toasts.length > 4) this.toasts.shift();
+  }
+
+  get army() { return this.hoplites.length + this.archers.length; }
+
   floater(x, y, text, color) {
     this.floaters.push({ id: _uid++, x, y, text, color, t: 0, life: 0.9 });
   }
 
   update(dt, player) {
+    if (this.over) { this._effects(dt); return; }
     this.time += dt;
     this._regen(dt);
     this._process(dt);
@@ -52,6 +80,15 @@ export class Game {
     this._deposit(dt, player);
     this._pickup(dt, player);
     this._sell(dt, player);
+    this._deliverFood(dt, player);
+    // Defence
+    this._waves(dt);
+    this._spartanAI(dt, player);
+    this._defenders(dt);
+    this._arrows(dt);
+    this._playerCombat(dt, player);
+    this._foodUpkeep(dt);
+    this._cleanup(player);
     this._effects(dt);
   }
 
@@ -158,10 +195,212 @@ export class Game {
     }
   }
 
+  // Deliver food to the Acropolis to stock the city larder (feeds soldiers).
+  _deliverFood(dt, player) {
+    if (!this.acropolis || player.carry.food <= 0 ||
+        this._distToRect(player, this.acropolis) > CFG.deposit.range) { this._foodAcc = 0; return; }
+    this._foodAcc = (this._foodAcc || 0) + dt;
+    while (this._foodAcc >= CFG.deposit.interval) {
+      this._foodAcc -= CFG.deposit.interval;
+      if (player.carry.food <= 0) break;
+      player.carry.food -= 1; this.cityFood += 1;
+      this.floater(this.acropolis.x + this.acropolis.w / 2, this.acropolis.y, '+1 🍞', '#c9772f');
+    }
+  }
+
   _effects(dt) {
     for (const f of this.floaters) f.t += dt;
     this.floaters = this.floaters.filter(f => f.t < f.life);
+    for (const t of this.toasts) t.t += dt;
+    this.toasts = this.toasts.filter(t => t.t < t.life);
     if (this.hint) { this.hint.t += dt; if (this.hint.t > 2.4) this.hint = null; }
+  }
+
+  // ======================================================================
+  //  DEFENCE — hiring, waves, combat
+  // ======================================================================
+  _makeHoplite() { return { id: _uid++, kind: 'hoplite', hp: CFG.hoplite.hp, maxHp: CFG.hoplite.hp, x: 20, y: CFG.defenders.hopY, cool: 0 }; }
+  _makeArcher()  { return { id: _uid++, kind: 'archer',  hp: CFG.archer.hp,  maxHp: CFG.archer.hp,  x: 20, y: CFG.defenders.arcY, cool: Math.random() }; }
+
+  hireHoplite(free) {
+    if (!free) {
+      if (this.drachmas < CFG.costs.hoplite) { this.toast('Not enough drachmas', 'warn'); return false; }
+      this.drachmas -= CFG.costs.hoplite;
+    }
+    this.hoplites.push(this._makeHoplite());
+    this._positionDefenders();
+    if (!free) this.toast('Hoplite hired — to the walls!', 'good');
+    return true;
+  }
+
+  hireArcher() {
+    if (this.drachmas < CFG.costs.archer) { this.toast('Not enough drachmas', 'warn'); return false; }
+    this.drachmas -= CFG.costs.archer;
+    this.archers.push(this._makeArcher());
+    this._positionDefenders();
+    this.toast('Archer hired — to the walls!', 'good');
+    return true;
+  }
+
+  repairWall() {
+    if (this.wall.hp >= this.wall.maxHp) { this.toast('Walls already at full HP', 'warn'); return false; }
+    if (this.drachmas < CFG.costs.repair) { this.toast('Not enough drachmas', 'warn'); return false; }
+    this.drachmas -= CFG.costs.repair;
+    this.wall.hp = Math.min(this.wall.maxHp, this.wall.hp + CFG.costs.repairHp);
+    this.toast(`Walls repaired +${CFG.costs.repairHp} HP`, 'good');
+    return true;
+  }
+
+  _positionDefenders() {
+    const d = CFG.defenders;
+    const place = (arr, y) => {
+      const n = arr.length;
+      arr.forEach((u, i) => { u.x = n === 1 ? (d.xMin + d.xMax) / 2 : d.xMin + (i / (n - 1)) * (d.xMax - d.xMin); u.y = y; });
+    };
+    place(this.hoplites, d.hopY);
+    place(this.archers, d.arcY);
+  }
+
+  _waves(dt) {
+    if (this.won) return;
+    if (!this.inWave && this.time >= this.nextWaveAt) this._startWave();
+  }
+
+  _startWave() {
+    const W = CFG.waves, d = CFG.defenders;
+    this.waveIndex++;
+    this.inWave = true;
+    const size = Math.round(W.baseSize + (this.waveIndex - 1) * W.sizeGrowth);
+    const bonus = (this.waveIndex - 1) * W.hpGrowth;
+    for (let i = 0; i < size; i++) {
+      const x = d.xMin + (i / Math.max(1, size - 1)) * (d.xMax - d.xMin) + (Math.random() * 1.2 - 0.6);
+      this.spartans.push({ id: _uid++, x, y: 1.5 + Math.random() * 3, hp: CFG.spartan.hp + bonus, maxHp: CFG.spartan.hp + bonus, atkCool: Math.random() });
+    }
+    this.toast(`⚔ Spartan assault — Wave ${this.waveIndex}!`, 'bad');
+  }
+
+  _endWave() {
+    const W = CFG.waves;
+    this.inWave = false;
+    this.arrows = [];
+    const reward = W.rewardBase + (this.waveIndex - 1) * W.rewardGrowth;
+    this.drachmas += reward;
+    this.toast(`Wave ${this.waveIndex} repelled! +${reward} ₪`, 'good');
+    this.nextWaveAt = this.time + W.interval;
+    for (const u of [...this.hoplites, ...this.archers]) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.4);
+    if (this.waveIndex >= W.victoryWave) { this.won = true; this.over = true; this.overReason = 'victory'; }
+  }
+
+  _spartanAI(dt, player) {
+    const S = CFG.spartan;
+    for (const s of this.spartans) {
+      if (s.hp <= 0) continue;
+      s.atkCool -= dt;
+      const dpx = player.x - s.x, dpy = player.y - s.y;
+      const dp = Math.hypot(dpx, dpy);
+      const chase = dp < S.aggro && player.invuln <= 0;
+      if (chase) {
+        if (dp > 0.9) { s.x += dpx / dp * S.speed * dt; s.y += dpy / dp * S.speed * dt; }
+        else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, S.atkPlayer); }
+      } else if (s.y < S.stopY) {
+        s.y += S.speed * dt;                       // march south to the wall
+      } else if (s.atkCool <= 0) {
+        s.atkCool = 1; this.wall.hp = Math.max(0, this.wall.hp - S.atkWall);
+        this.floater(s.x, s.y, '💥', '#e0a0a0');
+      }
+    }
+  }
+
+  _defenders(dt) {
+    const morale = this.cityFood > 0 ? 1 : 0.6;
+    for (const h of this.hoplites) {
+      h.cool = (h.cool || 0) - dt;
+      const t = this._nearestSpartan(h.x, h.y, CFG.hoplite.range);
+      if (t && h.cool <= 0) { h.cool = 1; t.hp -= CFG.hoplite.atk * morale; }
+    }
+    for (const a of this.archers) {
+      a.cool -= dt;
+      if (a.cool <= 0) {
+        const t = this._nearestSpartan(a.x, a.y, CFG.archer.range);
+        if (t) { a.cool = CFG.archer.cooldown; this.arrows.push({ x: a.x, y: a.y, tx: t.x, ty: t.y, target: t, t: 0, life: 0.5 }); }
+        else a.cool = 0.3;
+      }
+    }
+  }
+
+  _arrows(dt) {
+    for (const ar of this.arrows) {
+      ar.t += dt;
+      const p = Math.min(1, ar.t / ar.life);
+      ar.cx = ar.x + (ar.tx - ar.x) * p;
+      ar.cy = ar.y + (ar.ty - ar.y) * p;
+      if (p >= 1) { if (ar.target && ar.target.hp > 0) ar.target.hp -= CFG.archer.atk; ar.done = true; }
+    }
+    this.arrows = this.arrows.filter(a => !a.done);
+  }
+
+  _playerCombat(dt, player) {
+    const P = CFG.playerCombat;
+    player.atkCool -= dt;
+    if (player.invuln > 0) player.invuln -= dt;
+    if (player.hitFlash > 0) player.hitFlash -= dt;
+    if (player.attacking > 0) player.attacking -= dt;
+
+    const t = this._nearestSpartan(player.x, player.y, P.range);
+    if (t && player.atkCool <= 0) {
+      player.atkCool = P.cooldown; t.hp -= P.atk; player.attacking = 0.2;
+      if (t.hp <= 0) this.floater(t.x, t.y, '✔', '#cde');
+    }
+    // regenerate when safe inside the walls with no enemy nearby
+    if (player.health < player.maxHealth && player.inside && !t) {
+      player.health = Math.min(player.maxHealth, player.health + P.regen * dt);
+    }
+  }
+
+  _hurtPlayer(player, dmg) {
+    if (player.invuln > 0) return;
+    player.health -= dmg;
+    player.hitFlash = 0.3;
+    if (player.health <= 0) this._knockout(player);
+  }
+
+  _knockout(player) {
+    for (const k in player.carry) player.carry[k] = Math.floor(player.carry[k] / 2);
+    player.x = CFG.player.start.x; player.y = CFG.player.start.y;
+    player.health = player.maxHealth * 0.6;
+    player.invuln = CFG.playerCombat.invuln;
+    this.toast('You were driven back to the city!', 'bad');
+  }
+
+  _foodUpkeep(dt) {
+    const use = this.army * CFG.hoplite.foodUse * dt;
+    if (use <= 0) return;
+    if (this.cityFood >= use) { this.cityFood -= use; return; }
+    this.cityFood = 0;
+    this._desertAcc += dt;
+    if (this._desertAcc >= CFG.cityFood.desertEvery) {
+      this._desertAcc = 0;
+      const pool = this.hoplites.length >= this.archers.length ? this.hoplites : this.archers;
+      if (pool.length > 0) { pool.pop(); this._positionDefenders(); this.toast('A soldier deserted — no food!', 'bad'); }
+    }
+  }
+
+  _cleanup() {
+    this.spartans = this.spartans.filter(s => s.hp > 0);
+    this.hoplites = this.hoplites.filter(h => h.hp > 0);
+    this.archers = this.archers.filter(a => a.hp > 0);
+    if (this.wall.hp <= 0 && !this.over) { this.over = true; this.won = false; this.overReason = 'The walls of Athens have fallen!'; }
+    if (this.inWave && this.spartans.length === 0 && !this.over) this._endWave();
+  }
+
+  _nearestSpartan(x, y, range) {
+    let best = null, bd = range * range;
+    for (const s of this.spartans) {
+      if (s.hp <= 0) continue;
+      const dx = s.x - x, dy = s.y - y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = s; }
+    }
+    return best;
   }
 
   // ---- helpers ----

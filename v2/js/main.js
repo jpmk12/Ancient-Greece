@@ -6,6 +6,7 @@
 import { Player } from './player.js';
 import { Game } from './game.js';
 import { setupInput, getInput } from './input.js';
+import { setupUI } from './ui.js';
 import { updateCamera } from './world.js';
 import { render } from './render.js';
 
@@ -17,6 +18,15 @@ const state = {
   player: new Player(),
   game: new Game(),
 };
+
+const controls = {
+  hireHoplite: () => state.game.hireHoplite(),
+  hireArcher: () => state.game.hireArcher(),
+  repairWall: () => state.game.repairWall(),
+  restart: () => { state.game = new Game(); state.player = new Player(); },
+  getGame: () => state.game,
+};
+const ui = setupUI(controls);
 
 let viewW = 0, viewH = 0;
 
@@ -42,11 +52,12 @@ function frame(now) {
   dt = Math.min(dt, 0.05);
 
   state.time += dt;
-  state.player.update(dt, getInput());
+  if (!state.game.over) state.player.update(dt, getInput());
   state.game.update(dt, state.player);
   updateCamera(state.player.x, state.player.y, viewW, viewH);
 
   render(ctx, state, viewW, viewH);
+  ui.sync();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

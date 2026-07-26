@@ -67,6 +67,23 @@ export const CFG = {
   production: { ratePerSec: 0.75, rawPerGood: 2, outputCap: 30 },
   startDrachmas: 30,
 
+  // ---- Defence (Phase 4) ----
+  wall: { maxHp: 240, hpPerLevel: 90 },
+  // Spartans mass just north of the wall (which sits at cell y=12) and batter it.
+  spartan: { hp: 40, speed: 1.7, atkWall: 6, atkPlayer: 9, radius: 0.42, aggro: 2.2, stopY: 11.1 },
+  hoplite: { hp: 65, atk: 16, range: 1.6, foodUse: 0.03 },
+  archer:  { hp: 34, atk: 10, cooldown: 1.0, range: 7, foodUse: 0.03 },
+  playerCombat: { atk: 24, range: 1.5, cooldown: 0.5, maxHealth: 100, regen: 5, invuln: 2.2 },
+  waves: {
+    firstWaveAt: 30, interval: 42,
+    baseSize: 4, sizeGrowth: 1.5, hpGrowth: 6,
+    victoryWave: 10, rewardBase: 50, rewardGrowth: 20,
+  },
+  cityFood: { start: 20, desertEvery: 4 },   // soldiers eat; empty larder -> desertion
+  costs: { hoplite: 40, archer: 55, repair: 25, repairHp: 60 },
+  // Where hired defenders stand along the north wall (y=12).
+  defenders: { hopY: 12.5, arcY: 13.7, xMin: 15.5, xMax: 30.5 },
+
   // The sea occupies cells with y >= this (a coastline along the south).
   seaFromY: 37,
 
