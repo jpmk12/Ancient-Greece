@@ -11,7 +11,7 @@ current playable version until v2 reaches feature parity.
 
 ## Status
 
-- **Phase 1 — Isometric engine + traversal ✅ (this build)**
+- **Phase 1 — Isometric engine + traversal ✅**
   - Isometric projection, diamond tile ground (grass / city stone / sea)
   - Camera that follows the character and clamps to the map
   - Floating **virtual joystick** (touch) + WASD/arrow keys (desktop)
@@ -19,7 +19,14 @@ current playable version until v2 reaches feature parity.
   - A walled city with a working **gate** you pass through
   - Depth-sorted rendering (walls, buildings, trees, character)
   - Inside/outside-the-walls awareness
-- Phase 2 — Gather & carry (backpack capacity, deposit at workshops)
+- **Phase 2 — Gather & carry ✅ (this build)**
+  - Countryside **harvest nodes** — olive groves, vineyards, fishing docks —
+    with regenerating stock; walk up to auto-gather
+  - **Backpack** with capacity: per-resource counts, a carry bubble over the
+    character's head, a HUD meter, and a "full — take it home" prompt
+  - **Deposit** raw resources by standing at the matching workshop
+    (olives→Press, grapes→Winery, fish→Granary); buffers shown on each building
+  - The sea is now impassable — you fish from the shore
 - Phase 3 — Make & sell on foot (process, pick up goods, sell at the Agora)
 - Phase 4 — Siege reworked (Spartans, wall defence, personal danger)
 - Phase 5 — Progression & polish (porters/donkey, minimap, day/night, SFX)

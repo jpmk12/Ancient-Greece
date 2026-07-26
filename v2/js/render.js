@@ -66,18 +66,22 @@ function drawGround(ctx, viewW, viewH) {
 
 // ---- Depth-sorted objects -------------------------------------------------
 function drawObjects(ctx, state) {
+  const g = state.game;
   const items = [];
 
   for (const c of wallCells) items.push({ depth: depthOf(c), fn: () => drawWall(ctx, c) });
   for (const p of CFG.gatePosts) items.push({ depth: depthOf(p), fn: () => drawPost(ctx, p) });
-  for (const b of CFG.buildings) items.push({ depth: depthOf(b), fn: () => drawBuilding(ctx, b) });
-  for (const t of CFG.trees) items.push({ depth: t.x + t.y, fn: () => drawTree(ctx, t, state.time) });
+  for (const b of CFG.buildings) items.push({ depth: depthOf(b), fn: () => drawBuilding(ctx, b, g) });
+  for (const t of CFG.decoTrees) items.push({ depth: t.x + t.y, fn: () => drawTree(ctx, t, state.time) });
+  for (const n of g.nodes) items.push({ depth: n.x + n.y, fn: () => drawNode(ctx, n, g, state.time) });
 
   const pl = state.player;
   items.push({ depth: pl.x + pl.y, fn: () => drawPlayer(ctx, pl) });
 
   items.sort((a, b) => a.depth - b.depth);
   for (const it of items) it.fn();
+
+  drawFloaters(ctx, g);
 }
 
 function drawWall(ctx, c) {
@@ -93,17 +97,27 @@ function drawPost(ctx, p) {
   drawPrism(ctx, p, 42, '#b9a074', '#7c6338', '#9a8355');
 }
 
-function drawBuilding(ctx, b) {
+function drawBuilding(ctx, b, g) {
   const c = CFG.colors.buildings[b.kind] || CFG.colors.buildings.agora;
   const height = b.kind === 'acropolis' ? 60 : 40;
-  drawPrism(ctx, b, height, c.top, c.left, c.right);
+
+  // Highlight the workshop you're currently unloading into.
+  const active = g && g._activeBuilding === b.key;
+  if (active) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(150,255,130,0.9)';
+    ctx.shadowBlur = 22;
+    drawPrism(ctx, b, height, c.top, c.left, c.right);
+    ctx.restore();
+  } else {
+    drawPrism(ctx, b, height, c.top, c.left, c.right);
+  }
   drawColumns(ctx, b, height, Math.max(3, Math.round(b.h * 2)));
 
-  // roof + label on the top face
   const center = proj(b.x + b.w / 2, b.y + b.h / 2);
   const topY = center.y - height;
 
-  // simple pediment roof
+  // simple pediment tint on the top face
   ctx.fillStyle = '#8d4a3a';
   const a = proj(b.x, b.y), bb = proj(b.x + b.w, b.y), cc = proj(b.x + b.w, b.y + b.h), dd = proj(b.x, b.y + b.h);
   ctx.beginPath();
@@ -112,11 +126,103 @@ function drawBuilding(ctx, b) {
   ctx.closePath();
   ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1;
 
+  ctx.textAlign = 'center';
   ctx.fillStyle = '#3a2c18';
   ctx.font = 'bold 12px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(iconFor(b.kind) + ' ' + b.name, center.x, topY - 6);
+  ctx.fillText(iconFor(b.kind) + ' ' + b.name, center.x, topY - 20);
+
+  // Input buffer readout for production buildings.
+  if (b.input && g && g.buildings[b.key]) {
+    const stock = Math.floor(g.buildings[b.key].stock);
+    const m = CFG.resourceMeta[b.input];
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    const label = `${m.icon} ${stock}`;
+    const w = ctx.measureText(label).width + 14;
+    ctx.fillStyle = 'rgba(20,14,6,0.72)';
+    roundRect(ctx, center.x - w / 2, topY - 14, w, 20, 10); ctx.fill();
+    ctx.fillStyle = '#e8c86a';
+    ctx.fillText(label, center.x, topY);
+  }
   ctx.textAlign = 'left';
+}
+
+// ---- Harvest nodes (olive grove / vineyard / fishing dock) ----------------
+function drawNode(ctx, n, g, time) {
+  const p = proj(n.x, n.y);
+  const frac = n.stock / n.max;
+  const active = g._activeNode && g._activeNode.id === n.id;
+
+  // "in range" dashed ring while gathering
+  if (active) {
+    const spin = time * 1.2;
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.scale(1, 0.5); ctx.rotate(spin);
+    ctx.strokeStyle = 'rgba(150,255,130,0.9)';
+    ctx.lineWidth = 4; ctx.setLineDash([12, 9]);
+    ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath(); ctx.ellipse(p.x, p.y, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.globalAlpha = n.stock < 1 ? 0.45 : 1;
+  if (n.type === 'fish') drawDock(ctx, p, time, frac);
+  else drawFoliage(ctx, p, n.type === 'grapes' ? 'vine' : 'olive', time, n.x, frac);
+  ctx.globalAlpha = 1;
+
+  // stock bar
+  const bw = 34, bx = p.x - bw / 2, by = p.y + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; roundRect(ctx, bx - 2, by - 2, bw + 4, 8, 3); ctx.fill();
+  ctx.fillStyle = frac > 0.25 ? '#8fce6b' : '#d9a441';
+  roundRect(ctx, bx, by, bw * frac, 4, 2); ctx.fill();
+}
+
+function drawFoliage(ctx, p, kind, time, seed, frac) {
+  ctx.fillStyle = '#7a5433';
+  ctx.fillRect(p.x - 3, p.y - 26, 6, 26);
+  const sway = Math.sin(time * 1.3 + seed) * 1.5;
+  const s = 0.7 + 0.3 * frac; // shrink a little when depleted
+  if (kind === 'vine') {
+    ctx.fillStyle = '#4f8a3f';
+    blob(ctx, p.x + sway, p.y - 34, 15 * s);
+    ctx.fillStyle = '#7b3f6e';
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 9 + sway, p.y - 32 + Math.sin(a) * 7, 3.4 * s, 0, Math.PI * 2); ctx.fill(); }
+  } else {
+    ctx.fillStyle = '#5f7d3a';
+    blob(ctx, p.x - 10 + sway, p.y - 34, 16 * s); blob(ctx, p.x + 10 + sway, p.y - 30, 14 * s); blob(ctx, p.x + sway, p.y - 46, 17 * s);
+    ctx.fillStyle = '#4a642c';
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; ctx.beginPath(); ctx.arc(p.x + Math.cos(a) * 12 + sway, p.y - 40 + Math.sin(a) * 9, 2.6 * s, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+
+function drawDock(ctx, p, time, frac) {
+  // little pier planks extending toward the water (down-screen)
+  ctx.fillStyle = '#8a6a3a';
+  ctx.fillRect(p.x - 16, p.y - 4, 32, 8);
+  ctx.fillStyle = '#6f5330';
+  for (let i = -1; i <= 1; i++) ctx.fillRect(p.x + i * 12 - 1, p.y + 2, 3, 12);
+  // ripples + fish
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
+  const t = time * 3;
+  for (let i = 0; i < 2; i++) { const rr = ((t + i * 0.7) % 1.4) * 18; ctx.globalAlpha = Math.max(0, (frac > 0 ? 1 : 0.3) - rr / 26); ctx.beginPath(); ctx.ellipse(p.x, p.y + 16, rr + 4, (rr + 4) * 0.5, 0, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  ctx.font = '16px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('🐟', p.x, p.y - 8); ctx.textAlign = 'left';
+}
+
+function drawFloaters(ctx, g) {
+  ctx.textAlign = 'center';
+  for (const f of g.floaters) {
+    const p = proj(f.x, f.y);
+    const t = f.t / f.life;
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.font = 'bold 14px system-ui, sans-serif';
+    ctx.fillStyle = '#000'; ctx.fillText(f.text, p.x + 1, p.y - 30 - t * 26 + 1);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, p.x, p.y - 30 - t * 26);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
 // Greek column detailing on the visible front (right) face of a building.
@@ -197,6 +303,21 @@ function drawPlayer(ctx, pl) {
   ctx.fillRect(-8, -32, 16, 2);
 
   ctx.restore();
+
+  // Carry bubble above the head (shows the load you're hauling).
+  if (pl.carried > 0) {
+    let domType = 'olives', domN = -1;
+    for (const k of ['olives', 'grapes', 'fish']) if (pl.carry[k] > domN) { domN = pl.carry[k]; domType = k; }
+    const icon = CFG.resourceMeta[domType].icon;
+    const label = `${icon} ${pl.carried}`;
+    ctx.font = 'bold 13px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const w = ctx.measureText(label).width + 16;
+    const by = p.y - 74;
+    ctx.fillStyle = pl.full ? 'rgba(160,60,40,0.92)' : 'rgba(20,14,6,0.82)';
+    roundRect(ctx, p.x - w / 2, by, w, 22, 11); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(label, p.x, by + 16);
+    ctx.textAlign = 'left';
+  }
 }
 
 // ---- Screen-space overlays ------------------------------------------------
@@ -217,30 +338,76 @@ function drawJoystick(ctx) {
 }
 
 function drawHud(ctx, state, viewW, viewH) {
+  const g = state.game, pl = state.player;
   ctx.save();
   ctx.font = 'bold 15px system-ui, sans-serif';
   ctx.textAlign = 'center';
+
   // location banner
-  const label = state.player.inside ? '🏛  Inside the Walls' : '🌾  Outside — the Countryside';
+  const label = pl.inside ? '🏛  Inside the Walls' : '🌾  Outside — the Countryside';
   ctx.fillStyle = 'rgba(20,14,6,0.72)';
   const tw = ctx.measureText(label).width + 28;
   roundRect(ctx, viewW / 2 - tw / 2, 12, tw, 30, 15); ctx.fill();
-  ctx.fillStyle = state.player.inside ? '#e8c86a' : '#bfe08a';
+  ctx.fillStyle = pl.inside ? '#e8c86a' : '#bfe08a';
   ctx.fillText(label, viewW / 2, 32);
 
-  // control hint (fades once the player has moved)
-  if (state.time < 12) {
-    ctx.globalAlpha = Math.max(0, 1 - state.time / 12);
-    ctx.fillStyle = 'rgba(20,14,6,0.6)';
-    const hint = 'Drag anywhere to walk  •  or use W A S D  •  head through the gate ↓';
-    const hw = ctx.measureText(hint).width + 24;
-    roundRect(ctx, viewW / 2 - hw / 2, viewH - 52, hw, 30, 15); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillText(hint, viewW / 2, viewH - 32);
+  // transient hint (e.g. "Backpack full")
+  if (g.hint) {
+    ctx.globalAlpha = Math.max(0, 1 - g.hint.t / 2.4);
+    ctx.fillStyle = 'rgba(160,60,40,0.9)';
+    const hw = ctx.measureText(g.hint.text).width + 26;
+    roundRect(ctx, viewW / 2 - hw / 2, 50, hw, 28, 14); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(g.hint.text, viewW / 2, 69);
     ctx.globalAlpha = 1;
   }
+
+  // control hint (fades early)
+  if (state.time < 14) {
+    ctx.globalAlpha = Math.max(0, 1 - state.time / 14);
+    ctx.fillStyle = 'rgba(20,14,6,0.6)';
+    const hint = 'Walk to a grove, vineyard or dock to gather  •  bring it to the workshops';
+    const hw = ctx.measureText(hint).width + 24;
+    roundRect(ctx, viewW / 2 - hw / 2, viewH - 52, hw, 30, 15); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillText(hint, viewW / 2, viewH - 32);
+    ctx.globalAlpha = 1;
+  }
+
+  drawBackpack(ctx, pl, viewH);
   ctx.restore();
   ctx.textAlign = 'left';
+}
+
+// Bottom-left backpack panel: per-resource counts + capacity bar.
+function drawBackpack(ctx, pl, viewH) {
+  const x = 16, y = viewH - 92, w = 208, h = 76;
+  ctx.fillStyle = 'rgba(20,14,6,0.82)';
+  roundRect(ctx, x, y, w, h, 12); ctx.fill();
+  ctx.strokeStyle = pl.full ? '#e05a4f' : 'rgba(232,200,106,0.5)';
+  ctx.lineWidth = 2; roundRect(ctx, x, y, w, h, 12); ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 13px system-ui, sans-serif';
+  ctx.fillStyle = '#e8c86a';
+  ctx.fillText('🎒 Backpack', x + 12, y + 20);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = pl.full ? '#e05a4f' : '#cdbf98';
+  ctx.fillText(`${pl.carried} / ${pl.carryCap}`, x + w - 12, y + 20);
+
+  // resource counts
+  ctx.textAlign = 'center';
+  ctx.font = '14px system-ui, sans-serif';
+  const items = [['🫒', pl.carry.olives], ['🍇', pl.carry.grapes], ['🐟', pl.carry.fish]];
+  items.forEach(([ic, n], i) => {
+    const cx = x + 44 + i * 60;
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${ic} ${n}`, cx, y + 44);
+  });
+
+  // capacity bar
+  const bw = w - 24, bx = x + 12, by = y + 56;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, bx, by, bw, 8, 4); ctx.fill();
+  ctx.fillStyle = pl.full ? '#e05a4f' : '#8fce6b';
+  roundRect(ctx, bx, by, bw * (pl.carried / pl.carryCap), 8, 4); ctx.fill();
 }
 
 // ---- helpers --------------------------------------------------------------

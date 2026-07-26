@@ -17,13 +17,14 @@ export class Player {
     this.walkPhase = 0;
     this.inside = true;
 
-    // Reserved for later phases.
+    // Backpack.
     this.health = 100;
-    this.carry = {};        // { olives: n, grapes: n, ... }
-    this.carryCap = 10;
+    this.carry = { olives: 0, grapes: 0, fish: 0 };
+    this.carryCap = CFG.player.carryCap;
   }
 
-  get carried() { return Object.values(this.carry).reduce((a, b) => a + b, 0); }
+  get carried() { return this.carry.olives + this.carry.grapes + this.carry.fish; }
+  get full() { return this.carried >= this.carryCap; }
 
   update(dt, input) {
     const mag = Math.hypot(input.dx, input.dy);

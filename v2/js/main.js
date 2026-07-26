@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { Player } from './player.js';
+import { Game } from './game.js';
 import { setupInput, getInput } from './input.js';
 import { updateCamera } from './world.js';
 import { render } from './render.js';
@@ -14,6 +15,7 @@ const ctx = canvas.getContext('2d');
 const state = {
   time: 0,
   player: new Player(),
+  game: new Game(),
 };
 
 let viewW = 0, viewH = 0;
@@ -41,6 +43,7 @@ function frame(now) {
 
   state.time += dt;
   state.player.update(dt, getInput());
+  state.game.update(dt, state.player);
   updateCamera(state.player.x, state.player.y, viewW, viewH);
 
   render(ctx, state, viewW, viewH);

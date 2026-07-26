@@ -65,6 +65,8 @@ export const solids = [
 // Circle (cx,cy,r) vs any solid rect. Also keeps the player on the map.
 export function collides(cx, cy, r) {
   if (cx < r || cy < r || cx > CFG.map.w - r || cy > CFG.map.h - r) return true;
+  // The sea is impassable — you gather fish from the shore, not the water.
+  if (tileType(Math.floor(cx), Math.floor(cy)) === 'sea') return true;
   for (const s of solids) {
     const nx = Math.max(s.x, Math.min(cx, s.x + s.w));
     const ny = Math.max(s.y, Math.min(cy, s.y + s.h));
