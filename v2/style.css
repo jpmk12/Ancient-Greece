@@ -1,0 +1,13 @@
+/* Aegis of Athens v2 — full-viewport isometric canvas, touch-first. */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #14202e;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+#game { display: block; width: 100vw; height: 100vh; touch-action: none; }
