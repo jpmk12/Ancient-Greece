@@ -60,6 +60,17 @@ current playable version until v2 reaches feature parity.
 The v2 game is now feature-complete across all five phases — a full
 character-driven loop: gather → haul → process → sell → upgrade → defend.
 
+- **Art pass ✅**
+  - Textured ground: grassy fields with tufts, marble-paved city, animated sea
+  - Greek temples with stepped stylobates, fluted columns, entablature and
+    terracotta gabled roofs (domed granary, awninged agora, grand Acropolis)
+  - Richer resource nodes (layered olive groves, trellised vineyards, fishing
+    docks with nets, crates & fish) and a detailed Athenian character
+  - **Resource stacks**: finished goods pile up beside a workshop as amphorae
+    of oil, wine jars and loaves of bread — a visual "come collect me" cue with
+    a bobbing arrow — plus growing input piles and a basket the character and
+    porters visibly carry, filled by their load
+
 ## Run it
 
 ```bash
