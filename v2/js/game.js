@@ -27,6 +27,10 @@ export class Game {
     this.acropolis = CFG.buildings.find(b => b.kind === 'acropolis');
     this.drachmas = CFG.startDrachmas;
 
+    // Upgrade levels (carry/speed affect the player; the rest affect the city).
+    this.levels = { carry: 0, speed: 0, press: 1, winery: 1, granary: 1, wall: 1 };
+    this.porters = [];
+
     // ---- Defence ----
     this.wall = { hp: CFG.wall.maxHp, maxHp: CFG.wall.maxHp, level: 1 };
     this.spartans = [];
@@ -41,6 +45,7 @@ export class Game {
     this.won = false;
     this.overReason = '';
     this.toasts = [];
+    this.sfx = [];             // queued sound names, drained by main
     this._desertAcc = 0;
     // Start with a small garrison.
     this.hireHoplite(true);
@@ -65,6 +70,8 @@ export class Game {
     if (this.toasts.length > 4) this.toasts.shift();
   }
 
+  playSfx(name) { this.sfx.push(name); if (this.sfx.length > 8) this.sfx.shift(); }
+
   get army() { return this.hoplites.length + this.archers.length; }
 
   floater(x, y, text, color) {
@@ -88,6 +95,7 @@ export class Game {
     this._arrows(dt);
     this._playerCombat(dt, player);
     this._foodUpkeep(dt);
+    this._porters(dt);
     this._cleanup(player);
     this._effects(dt);
   }
@@ -97,7 +105,7 @@ export class Game {
     const P = CFG.production;
     for (const key in this.buildings) {
       const b = this.buildings[key];
-      const want = P.ratePerSec * dt;
+      const want = P.ratePerSec * this.levels[key] * dt;
       const made = Math.max(0, Math.min(want, b.stock / P.rawPerGood, P.outputCap - b.outStock));
       if (made > 0) { b.stock -= made * P.rawPerGood; b.outStock += made; }
     }
@@ -192,6 +200,7 @@ export class Game {
       const price = CFG.goodsMeta[good].sell;
       this.drachmas += price;
       this.floater(this.agora.x + this.agora.w / 2, this.agora.y, `+${price} ₪`, '#e8c86a');
+      this.playSfx('coin');
     }
   }
 
@@ -277,6 +286,7 @@ export class Game {
       this.spartans.push({ id: _uid++, x, y: 1.5 + Math.random() * 3, hp: CFG.spartan.hp + bonus, maxHp: CFG.spartan.hp + bonus, atkCool: Math.random() });
     }
     this.toast(`⚔ Spartan assault — Wave ${this.waveIndex}!`, 'bad');
+    this.playSfx('horn');
   }
 
   _endWave() {
@@ -361,6 +371,7 @@ export class Game {
     if (player.invuln > 0) return;
     player.health -= dmg;
     player.hitFlash = 0.3;
+    this.playSfx('hit');
     if (player.health <= 0) this._knockout(player);
   }
 
@@ -401,6 +412,161 @@ export class Game {
       if (d < bd) { bd = d; best = s; }
     }
     return best;
+  }
+
+  // ======================================================================
+  //  PROGRESSION — upgrades & porters
+  // ======================================================================
+  upgradeCost(key) {
+    const u = CFG.upgrades[key];
+    const lvl = this.levels[key];
+    if (lvl >= u.max) return Infinity;
+    return u.cost(lvl);
+  }
+
+  buyUpgrade(key, player) {
+    const cost = this.upgradeCost(key);
+    if (!isFinite(cost)) { this.toast('Already at max level', 'warn'); return false; }
+    if (this.drachmas < cost) { this.toast('Not enough drachmas', 'warn'); return false; }
+    this.drachmas -= cost;
+    this.levels[key]++;
+    this.applyUpgrade(key, player);
+    this.toast(`${CFG.upgrades[key].name} → Lv.${this.levels[key]}`, 'good');
+    return true;
+  }
+
+  // (Re)apply an upgrade's effect. Also called on load to rebuild player stats.
+  applyUpgrade(key, player) {
+    if (key === 'carry' && player) player.carryCap = CFG.player.carryCap + this.levels.carry * CFG.upgrades.carry.step;
+    if (key === 'speed' && player) player.speed = CFG.player.speed * (1 + this.levels.speed * 0.12);
+    if (key === 'wall') {
+      this.wall.maxHp = CFG.wall.maxHp + (this.levels.wall - 1) * CFG.upgrades.wall.step;
+      this.wall.hp = this.wall.maxHp;
+    }
+  }
+
+  hirePorter(role) {
+    const P = CFG.porters;
+    const cost = role === 'trade' ? P.tradeCost : P.gatherCost;
+    const count = this.porters.filter(p => p.role === role).length;
+    if (count >= P.maxEach) { this.toast('Enough of those porters', 'warn'); return false; }
+    if (this.drachmas < cost) { this.toast('Not enough drachmas', 'warn'); return false; }
+    this.drachmas -= cost;
+    this.porters.push({ id: _uid++, role, x: 22, y: 24, item: null, load: 0, phase: 'seek', target: null });
+    this.toast(role === 'trade' ? 'Merchant porter hired' : 'Gatherer porter hired', 'good');
+    return true;
+  }
+
+  _workshopForType(type) { return CFG.buildings.find(b => b.input === type); }
+
+  _porters(dt) {
+    const P = CFG.porters;
+    for (const p of this.porters) {
+      if (!p.target) this._porterPlan(p);
+      if (!p.target) continue;                       // nothing to do — idle
+      const dx = p.target.x - p.x, dy = p.target.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d > P.reach) {
+        p.x += dx / d * P.speed * dt;
+        p.y += dy / d * P.speed * dt;
+      } else {
+        this._porterArrive(p);
+        p.target = null;
+      }
+    }
+  }
+
+  _porterPlan(p) {
+    if (p.role === 'gather') {
+      if (p.load > 0) { const b = this._workshopForType(p.item); p.target = b ? { x: b.x + b.w / 2, y: b.y + b.h + 0.7 } : null; }
+      else { const n = this._nearestStockedNode(p); p.target = n ? { x: n.x, y: n.y, node: n } : null; }
+    } else { // trade
+      if (p.load > 0) {
+        p.target = { x: this.agora.x + this.agora.w / 2, y: this.agora.y + this.agora.h + 0.7 };
+      } else {
+        const b = this._workshopWithOutput(p);
+        if (b) { const c = CFG.buildings.find(k => k.key === b.key); p.target = { x: c.x + c.w / 2, y: c.y + c.h + 0.7, wk: b.key }; }
+        else p.target = null;
+      }
+    }
+  }
+
+  _porterArrive(p) {
+    const P = CFG.porters;
+    if (p.role === 'gather') {
+      if (p.load > 0) { const b = this.buildings[this._workshopForType(p.item).key]; b.stock += p.load; p.load = 0; p.item = null; }
+      else { const n = p.target.node; if (n && n.stock >= 1) { const grab = Math.min(P.cap, Math.floor(n.stock)); n.stock -= grab; p.load = grab; p.item = n.type; } }
+    } else {
+      if (p.load > 0) { const price = CFG.goodsMeta[p.item].sell; this.drachmas += p.load * price; this.floater(this.agora.x + this.agora.w / 2, this.agora.y, `+${p.load * price} ₪`, '#e8c86a'); p.load = 0; p.item = null; }
+      else { const b = this.buildings[p.target.wk]; if (b && b.outStock >= 1) { const grab = Math.min(P.cap, Math.floor(b.outStock)); b.outStock -= grab; p.load = grab; p.item = b.output; } }
+    }
+  }
+
+  _nearestStockedNode(p) {
+    let best = null, bd = Infinity;
+    for (const n of this.nodes) {
+      if (n.stock < 1) continue;
+      const dx = n.x - p.x, dy = n.y - p.y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+
+  _workshopWithOutput(p) {
+    let best = null, bd = Infinity;
+    for (const key in this.buildings) {
+      const b = this.buildings[key];
+      if (b.outStock < 1) continue;
+      const cfgB = CFG.buildings.find(k => k.key === key);
+      const dx = cfgB.x - p.x, dy = cfgB.y - p.y, d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  // ======================================================================
+  //  SAVE / LOAD
+  // ======================================================================
+  serialize(player) {
+    return {
+      v: 1, time: this.time, drachmas: this.drachmas,
+      levels: { ...this.levels }, wall: { ...this.wall }, cityFood: this.cityFood,
+      waveIndex: this.waveIndex, nextWaveAt: this.nextWaveAt,
+      hoplites: this.hoplites.length, archers: this.archers.length,
+      porters: this.porters.map(p => p.role),
+      nodes: this.nodes.map(n => n.stock),
+      buildings: Object.fromEntries(Object.entries(this.buildings).map(([k, b]) => [k, { stock: b.stock, outStock: b.outStock }])),
+      player: { x: player.x, y: player.y, carry: { ...player.carry }, health: player.health },
+    };
+  }
+
+  applySave(data, player) {
+    if (!data || data.v !== 1) return false;
+    this.time = data.time || 0;
+    this.drachmas = data.drachmas ?? this.drachmas;
+    Object.assign(this.levels, data.levels || {});
+    this.cityFood = data.cityFood ?? this.cityFood;
+    this.waveIndex = data.waveIndex || 0;
+    this.nextWaveAt = data.nextWaveAt || CFG.waves.firstWaveAt;
+    if (data.wall) this.wall = { ...this.wall, ...data.wall };
+    if (Array.isArray(data.nodes)) data.nodes.forEach((s, i) => { if (this.nodes[i]) this.nodes[i].stock = s; });
+    if (data.buildings) for (const k in data.buildings) if (this.buildings[k]) Object.assign(this.buildings[k], data.buildings[k]);
+    // rebuild defenders & porters from counts/roles
+    this.hoplites = []; this.archers = [];
+    for (let i = 0; i < (data.hoplites || 0); i++) this.hoplites.push(this._makeHoplite());
+    for (let i = 0; i < (data.archers || 0); i++) this.archers.push(this._makeArcher());
+    this._positionDefenders();
+    this.porters = (data.porters || []).map(role => ({ id: _uid++, role, x: 22, y: 24, item: null, load: 0, phase: 'seek', target: null }));
+    this.spartans = []; this.arrows = []; this.inWave = false;
+    // player
+    if (data.player && player) {
+      player.x = data.player.x; player.y = data.player.y;
+      Object.assign(player.carry, data.player.carry || {});
+      player.health = data.player.health ?? player.maxHealth;
+    }
+    this.applyUpgrade('carry', player);
+    this.applyUpgrade('speed', player);
+    return true;
   }
 
   // ---- helpers ----

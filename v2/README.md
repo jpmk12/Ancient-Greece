@@ -47,7 +47,18 @@ current playable version until v2 reaches feature parity.
     larder; an empty larder starves soldiers into deserting
   - Escalating waves, drachma rewards per wave, and a **win at 10 waves**;
     end-game modal with Play Again
-- Phase 5 — Progression & polish (porters/donkey, minimap, day/night, SFX, save)
+- **Phase 5 — Progression & polish ✅ (this build)**
+  - **Upgrade shop** (slide-in panel): bigger backpack, faster movement,
+    faster workshops (press/winery/granary), and stronger city walls
+  - **Porters — the idle layer**: hire *Gatherer* porters that auto-harvest
+    and stock the workshops, and *Merchant* porters that auto-sell finished
+    goods at the Agora; they roam the map on their own
+  - **Minimap** (top-left) showing the city, nodes, porters, Spartans and you
+  - **Save / load** to localStorage with autosave and resume-on-reload
+  - **Sound**: synthesised WebAudio SFX for coins, hits and the war-horn
+
+The v2 game is now feature-complete across all five phases — a full
+character-driven loop: gather → haul → process → sell → upgrade → defend.
 
 ## Run it
 

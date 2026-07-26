@@ -78,6 +78,7 @@ function drawObjects(ctx, state) {
   for (const s of g.spartans) items.push({ depth: s.x + s.y, fn: () => drawSpartan(ctx, s, state.time) });
   for (const h of g.hoplites) items.push({ depth: h.x + h.y, fn: () => drawDefender(ctx, h, state.time) });
   for (const a of g.archers) items.push({ depth: a.x + a.y, fn: () => drawDefender(ctx, a, state.time) });
+  for (const p of g.porters) items.push({ depth: p.x + p.y, fn: () => drawPorter(ctx, p, state.time) });
 
   const pl = state.player;
   items.push({ depth: pl.x + pl.y, fn: () => drawPlayer(ctx, pl) });
@@ -401,6 +402,26 @@ function drawDefender(ctx, u, time) {
   if (f < 1) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(p.x - 10, p.y - 32, 20, 3); ctx.fillStyle = '#6fbf73'; ctx.fillRect(p.x - 10, p.y - 32, 20 * f, 3); }
 }
 
+function drawPorter(ctx, p, time) {
+  const pt = proj(p.x, p.y);
+  const moving = !!p.target;
+  const bob = moving ? Math.abs(Math.sin(time * 8 + p.x)) * 1.6 : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath(); ctx.ellipse(pt.x, pt.y, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(pt.x, pt.y - bob);
+  ctx.fillStyle = p.role === 'trade' ? '#c79a3a' : '#8a6a44';
+  roundRect(ctx, -6, -20, 12, 14, 3); ctx.fill();
+  ctx.fillStyle = '#e8c9a0'; ctx.beginPath(); ctx.arc(0, -23, 4, 0, Math.PI * 2); ctx.fill();
+  // load on the back
+  if (p.load > 0) {
+    const m = CFG.resourceMeta[p.item] || CFG.goodsMeta[p.item];
+    ctx.font = '11px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`${m.icon}`, 0, -26);
+  }
+  ctx.restore();
+}
+
 function drawArrows(ctx, g) {
   ctx.strokeStyle = '#4a3a1a'; ctx.lineWidth = 2;
   for (const ar of g.arrows) {
@@ -461,8 +482,47 @@ function drawHud(ctx, state, viewW, viewH) {
   drawDrachmas(ctx, g, viewW);
   drawArmyFood(ctx, g, viewW);
   drawBackpack(ctx, pl, viewH);
+  drawMinimap(ctx, state);
   ctx.restore();
   ctx.textAlign = 'left';
+}
+
+// Top-left minimap: city, nodes, player, porters and Spartans at a glance.
+function drawMinimap(ctx, state) {
+  const g = state.game, pl = state.player;
+  const size = 132, x = 16, y = 16, pad = 8;
+  const s = (size - pad * 2) / CFG.map.w;
+  const mx = c => x + pad + c * s, my = c => y + pad + c * s;
+
+  ctx.fillStyle = 'rgba(20,14,6,0.8)';
+  roundRect(ctx, x, y, size, size, 10); ctx.fill();
+  // grass base
+  ctx.fillStyle = '#6f9a4a';
+  roundRect(ctx, x + pad, y + pad, size - pad * 2, size - pad * 2, 4); ctx.fill();
+  // sea
+  ctx.fillStyle = '#3f86ad';
+  ctx.fillRect(mx(0), my(CFG.seaFromY), CFG.map.w * s, (CFG.map.h - CFG.seaFromY) * s);
+  // city
+  const c = CFG.city;
+  ctx.fillStyle = '#cbb98f';
+  ctx.fillRect(mx(c.x0), my(c.y0), (c.x1 - c.x0) * s, (c.y1 - c.y0) * s);
+  // nodes
+  for (const n of g.nodes) {
+    ctx.fillStyle = CFG.resourceMeta[n.type].color;
+    ctx.fillRect(mx(n.x) - 1.5, my(n.y) - 1.5, 3, 3);
+  }
+  // porters
+  ctx.fillStyle = '#f0e0a0';
+  for (const p of g.porters) ctx.fillRect(mx(p.x) - 1, my(p.y) - 1, 2, 2);
+  // spartans
+  ctx.fillStyle = '#e05a4f';
+  for (const sp of g.spartans) ctx.fillRect(mx(sp.x) - 1.5, my(sp.y) - 1.5, 3, 3);
+  // player
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(mx(pl.x), my(pl.y), 2.6, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(232,200,106,0.5)'; ctx.lineWidth = 1.5;
+  roundRect(ctx, x, y, size, size, 10); ctx.stroke();
 }
 
 // Wall HP + wave countdown / "under assault" banner, top-centre.

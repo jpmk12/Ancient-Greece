@@ -10,6 +10,15 @@ Inspired by tap-collection mobile strategy games (e.g. *Last Asylum: Plague*),
 built to be played **on an iPad in a web browser** — but it runs on any modern
 browser, desktop or mobile.
 
+> ### 🎮 Two versions
+> - **This page (`index.html`)** — the original **tap-to-gather** game (a fixed
+>   side-view board you tap to collect and defend).
+> - **[`v2/`](v2/) — the isometric, character-driven remake.** You walk an
+>   Athenian around an isometric world with a virtual joystick: out through the
+>   city gate to gather, back to the workshops to process, to the Agora to sell,
+>   then hire defenders and hold the walls. Hire porters to automate the
+>   logistics. Open `v2/` to play it. This is the actively-developed direction.
+
 ## How to play
 
 1. **Tap** the glowing dashed rings around olive groves 🫒, vineyards 🍇 and

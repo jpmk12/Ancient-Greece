@@ -74,3 +74,44 @@ html, body {
   font-size: 17px; padding: 12px 24px;
   background: linear-gradient(180deg, #f0c04a, #d29a24);
 }
+
+/* ---- Upgrade shop panel ---- */
+#shop {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: min(390px, 90vw);
+  background: rgba(30, 22, 12, 0.94);
+  border-left: 4px solid #b8912f;
+  box-shadow: -10px 0 40px rgba(0,0,0,0.5);
+  transform: translateX(105%);
+  transition: transform 0.28s cubic-bezier(.2,.8,.2,1);
+  z-index: 50; display: flex; flex-direction: column;
+  font-family: system-ui, sans-serif;
+}
+#shop.show { transform: translateX(0); }
+.shop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; color: #e8c86a; font-weight: 800; font-size: 17px;
+  border-bottom: 2px solid rgba(232,200,106,0.3);
+}
+#close-shop { background: none; border: none; color: #e3d6b0; font-size: 22px; cursor: pointer; padding: 4px 8px; }
+.shop-body { overflow-y: auto; padding: 8px 12px 24px; -webkit-overflow-scrolling: touch; }
+.shop-sec { color: #e8c86a; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 14px 4px 8px; opacity: 0.85; }
+.shop-item {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  text-align: left; font-family: inherit;
+  background: linear-gradient(180deg, #4a3a20, rgba(53,40,21,0.25));
+  border: 2px solid rgba(232,200,106,0.3); border-radius: 12px;
+  padding: 10px 12px; margin-bottom: 8px; color: #f0e6cc; cursor: pointer;
+  transition: transform 0.06s, border-color 0.1s;
+}
+.shop-item:active { transform: scale(0.98); }
+.si-main { display: flex; flex-direction: column; gap: 2px; }
+.si-name { font-weight: 800; font-size: 15px; }
+.si-lv { color: #e8c86a; font-size: 12px; }
+.si-desc { font-size: 12px; opacity: 0.72; }
+.si-cost { flex-shrink: 0; font-weight: 800; font-size: 14px; padding: 5px 10px; border-radius: 10px; background: rgba(0,0,0,0.3); color: #e8c86a; }
+.shop-item.afford { border-color: #6fbf73; }
+.shop-item.afford .si-cost { background: #2f6a30; color: #d8ffd0; }
+.shop-item.poor { opacity: 0.72; }
+.shop-item.maxed { opacity: 0.5; }
+.shop-item.maxed .si-cost { background: #444; color: #ccc; }

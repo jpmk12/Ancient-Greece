@@ -84,6 +84,25 @@ export const CFG = {
   // Where hired defenders stand along the north wall (y=12).
   defenders: { hopY: 12.5, arcY: 13.7, xMin: 15.5, xMax: 30.5 },
 
+  // ---- Progression (Phase 5) ----
+  // level starts at the given base; cost(l) is the price to buy the next level.
+  upgrades: {
+    carry:   { name: 'Bigger Pack',    desc: '+6 backpack capacity',  base: 0, max: 6, step: 6,    cost: l => Math.floor(40 * Math.pow(1.7, l)) },
+    speed:   { name: 'Swift Sandals',  desc: '+12% move speed',       base: 0, max: 6,             cost: l => Math.floor(55 * Math.pow(1.7, l)) },
+    press:   { name: 'Olive Press',    desc: 'Faster oil pressing',   base: 1, max: 6,             cost: l => Math.floor(50 * Math.pow(1.6, l - 1)) },
+    winery:  { name: 'Winery',         desc: 'Faster wine making',    base: 1, max: 6,             cost: l => Math.floor(55 * Math.pow(1.6, l - 1)) },
+    granary: { name: 'Granary',        desc: 'Faster food production',base: 1, max: 6,             cost: l => Math.floor(45 * Math.pow(1.6, l - 1)) },
+    wall:    { name: 'City Walls',     desc: '+90 max wall HP',       base: 1, max: 6, step: 90,   cost: l => Math.floor(70 * Math.pow(1.7, l - 1)) },
+  },
+
+  // Autonomous logistics NPCs.
+  porters: {
+    gatherCost: 90, tradeCost: 120, maxEach: 4,
+    speed: 3.6, cap: 8, reach: 0.8,
+  },
+
+  saveKey: 'aegis-of-athens-v2-save',
+
   // The sea occupies cells with y >= this (a coastline along the south).
   seaFromY: 37,
 
