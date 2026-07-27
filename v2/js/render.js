@@ -334,7 +334,7 @@ function drawDome(ctx, b, elev, roofCol) {
   const g = ctx.createRadialGradient(c.x - rx * 0.3, cy - ry * 0.5, ry * 0.2, c.x, cy, rx);
   g.addColorStop(0, shade(roofCol, 0.28)); g.addColorStop(1, shade(roofCol, -0.12));
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(c.x, cy, rx, ry, 0, Math.PI, 0); ctx.fill();
+  ctx.beginPath(); ell(ctx,c.x, cy, rx, ry, 0, Math.PI, 0); ctx.fill();
   ctx.fillStyle = shade(roofCol, -0.05); ctx.fillRect(c.x - rx, cy - 1, rx * 2, 3);
   ctx.fillStyle = shade(roofCol, 0.3);
   ctx.beginPath(); ctx.arc(c.x, cy - ry, 2.4, 0, Math.PI * 2); ctx.fill();
@@ -421,7 +421,7 @@ function drawAmphora(ctx, x, y, s, body) {
   ctx.save(); ctx.translate(x, y);
   // shadow
   ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  ctx.beginPath(); ctx.ellipse(0, 0, w * 1.2, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ell(ctx,0, 0, w * 1.2, 2.5, 0, 0, Math.PI * 2); ctx.fill();
   // body
   const g = ctx.createLinearGradient(-w, 0, w, 0);
   g.addColorStop(0, shade(body, -0.2)); g.addColorStop(0.45, shade(body, 0.15)); g.addColorStop(1, shade(body, -0.25));
@@ -447,11 +447,11 @@ function drawAmphora(ctx, x, y, s, body) {
 
 function drawBread(ctx, x, y, s) {
   ctx.save(); ctx.translate(x, y);
-  ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ctx.ellipse(0, 0, s * 0.6, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.12)'; ctx.beginPath(); ell(ctx,0, 0, s * 0.6, 2.2, 0, 0, Math.PI * 2); ctx.fill();
   const g = ctx.createLinearGradient(0, -s * 0.7, 0, 0);
   g.addColorStop(0, '#e0a259'); g.addColorStop(1, '#b9772f');
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.ellipse(0, -s * 0.32, s * 0.5, s * 0.34, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ell(ctx,0, -s * 0.32, s * 0.5, s * 0.34, 0, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = 'rgba(120,70,20,0.6)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(-s * 0.25, -s * 0.5); ctx.lineTo(-s * 0.15, -s * 0.18); ctx.moveTo(0, -s * 0.55); ctx.lineTo(0, -s * 0.14); ctx.moveTo(s * 0.25, -s * 0.5); ctx.lineTo(s * 0.15, -s * 0.18); ctx.stroke();
   ctx.restore();
@@ -460,7 +460,7 @@ function drawBread(ctx, x, y, s) {
 function drawFishSprite(ctx, x, y, s, col) {
   ctx.save(); ctx.translate(x, y);
   ctx.fillStyle = col || '#4a90b8';
-  ctx.beginPath(); ctx.ellipse(0, 0, s * 0.5, s * 0.28, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ell(ctx,0, 0, s * 0.5, s * 0.28, 0.2, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.moveTo(s * 0.4, 0); ctx.lineTo(s * 0.62, -s * 0.22); ctx.lineTo(s * 0.62, s * 0.22); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(-s * 0.28, -s * 0.06, 1.2, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -472,7 +472,7 @@ function drawBasket(ctx, x, y, s, fillCol, fill) {
   // contents mound
   if (fill > 0 && fillCol) {
     ctx.fillStyle = fillCol;
-    ctx.beginPath(); ctx.ellipse(0, -s * (0.5 + fill * 0.5), s * 0.5, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ell(ctx,0, -s * (0.5 + fill * 0.5), s * 0.5, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = shade(fillCol, 0.25);
     ctx.beginPath(); ctx.arc(-s * 0.14, -s * (0.55 + fill * 0.5), s * 0.1, 0, Math.PI * 2); ctx.fill();
   }
@@ -504,7 +504,7 @@ function drawNode(ctx, n, g, time) {
     ctx.setLineDash([]); ctx.restore();
   }
   ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath(); ctx.ellipse(p.x, p.y, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ell(ctx,p.x, p.y, 18, 9, 0, 0, Math.PI * 2); ctx.fill();
 
   ctx.globalAlpha = n.stock < 1 ? 0.5 : 1;
   if (n.type === 'fish') drawFishDock(ctx, p, time, frac);
@@ -571,7 +571,7 @@ function drawFishDock(ctx, p, time, frac) {
   // ripple + jumping fish
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
   const t = time * 3, rr = (t % 1.4) * 18;
-  ctx.globalAlpha = Math.max(0, 1 - rr / 26); ctx.beginPath(); ctx.ellipse(p.x, p.y + 18, rr + 4, (rr + 4) * 0.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.globalAlpha = Math.max(0, 1 - rr / 26); ctx.beginPath(); ell(ctx,p.x, p.y + 18, rr + 4, (rr + 4) * 0.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
 }
 
 // ---- Character ------------------------------------------------------------
@@ -579,7 +579,7 @@ function drawPlayer(ctx, pl) {
   const p = proj(pl.x, pl.y);
   const bob = pl.moving ? Math.abs(Math.sin(pl.walkPhase)) * 2.5 : 0;
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ctx.beginPath(); ctx.ellipse(p.x, p.y, 15, 7.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ell(ctx,p.x, p.y, 15, 7.5, 0, 0, Math.PI * 2); ctx.fill();
 
   ctx.save();
   ctx.translate(p.x, p.y - bob);
@@ -600,7 +600,7 @@ function drawPlayer(ctx, pl) {
   // head + hair + petasos
   ctx.fillStyle = '#e8c9a0'; ctx.beginPath(); ctx.arc(0, -30, 5.5, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#4a3720'; ctx.beginPath(); ctx.arc(0, -31, 5.6, Math.PI, 0); ctx.fill();
-  ctx.fillStyle = '#7a5a30'; ctx.beginPath(); ctx.ellipse(0, -33, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#7a5a30'; ctx.beginPath(); ell(ctx,0, -33, 8, 2.4, 0, 0, Math.PI * 2); ctx.fill();
   if (pl.attacking > 0) {
     ctx.strokeStyle = '#c9c2a0'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(6, -16); ctx.lineTo(21, -21); ctx.stroke();
@@ -641,7 +641,7 @@ function domCarry(carry) {
 function drawSpartan(ctx, s, time) {
   const p = proj(s.x, s.y);
   const bob = Math.sin(time * 8 + s.x) * 1.6;
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ell(ctx,p.x, p.y, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.translate(p.x, p.y - bob);
   const g = ctx.createRadialGradient(-3, -15, 2, 0, -12, 12);
   g.addColorStop(0, '#b23030'); g.addColorStop(1, '#7a1818');
@@ -660,7 +660,7 @@ function drawDefender(ctx, u, time) {
   const p = proj(u.x, u.y);
   const bob = Math.sin(time * 5 + u.x) * 1.1;
   const archer = u.kind === 'archer';
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(p.x, p.y, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ell(ctx,p.x, p.y, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.translate(p.x, p.y - bob);
   const g = ctx.createRadialGradient(-2, -13, 1, 0, -11, 10);
   g.addColorStop(0, archer ? '#5a86c4' : '#d29a3c'); g.addColorStop(1, archer ? '#33578f' : '#9a6620');
@@ -678,7 +678,7 @@ function drawPorter(ctx, p, time) {
   const pt = proj(p.x, p.y);
   const moving = !!p.target;
   const bob = moving ? Math.abs(Math.sin(time * 8 + p.x)) * 1.6 : 0;
-  ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(pt.x, pt.y, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ell(ctx,pt.x, pt.y, 9, 4.5, 0, 0, Math.PI * 2); ctx.fill();
   ctx.save(); ctx.translate(pt.x, pt.y - bob);
   ctx.fillStyle = p.role === 'trade' ? '#c79a3a' : '#8a6a44';
   roundRect(ctx, -5, -19, 10, 13, 3); ctx.fill();
@@ -865,7 +865,9 @@ function face(ctx, pts, topCol, botCol) {
   g.addColorStop(0, topCol); g.addColorStop(1, botCol);
   quad(ctx, pts, g);
 }
-function blob(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+function blob(ctx, x, y, r) { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2); ctx.fill(); }
+// Safe ellipse — clamps radii so a computed negative can never throw & freeze the frame.
+function ell(ctx, x, y, rx, ry, rot, a0, a1) { ctx.ellipse(x, y, Math.max(0.01, rx || 0), Math.max(0.01, ry || 0), rot, a0, a1); }
 function lerpv(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }; }
 function lerpvE(base, top, elev) { const h = base.y - top.y || 1; const t = elev / h; return lerpv(base, top, t); }
 function hash(x, y) { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }

@@ -87,8 +87,10 @@ function frame(now) {
   // drain queued sound effects
   if (state.game.sfx.length) { for (const s of state.game.sfx) playSfx(s); state.game.sfx.length = 0; }
 
-  render(ctx, state, viewW, viewH);
-  ui.sync();
+  // A drawing error must never halt the loop — log once, keep running.
+  try { render(ctx, state, viewW, viewH); }
+  catch (e) { if (!window.__renderErr) { console.error('render error', e); window.__renderErr = true; } }
+  try { ui.sync(); } catch (e) {}
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
