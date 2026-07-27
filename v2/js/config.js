@@ -58,8 +58,8 @@ export const CFG = {
     { type: 'vine',  x: 2, y: 28 }, { type: 'vine', x: 44, y: 31 },
   ],
 
-  node:    { max: 12, regen: 0.9 },        // stock capacity + regen/sec
-  gather:  { range: 1.6, interval: 0.20 }, // proximity + seconds per unit
+  node:    { max: 16, regen: 1.3 },        // stock capacity + regen/sec
+  gather:  { range: 1.6, interval: 0.15 }, // proximity + seconds per unit
   deposit: { range: 1.8, interval: 0.10 }, // proximity + seconds per unit (drop off + pick up)
   sell:    { interval: 0.09 },             // seconds per unit sold at the Agora
 
@@ -75,7 +75,7 @@ export const CFG = {
   archer:  { hp: 34, atk: 10, cooldown: 1.0, range: 7, foodUse: 0.03 },
   playerCombat: { atk: 24, range: 1.5, cooldown: 0.5, maxHealth: 100, regen: 5, invuln: 2.2 },
   waves: {
-    firstWaveAt: 30, interval: 42,
+    firstWaveAt: 70, interval: 70,
     baseSize: 4, sizeGrowth: 1.5, hpGrowth: 6,
     victoryWave: 10, rewardBase: 50, rewardGrowth: 20,
   },
@@ -108,9 +108,9 @@ export const CFG = {
 
   // Player tuning.
   player: {
-    speed: 5.4,        // cells per second
+    speed: 6.0,        // cells per second
     radius: 0.36,      // collision radius in cells
-    carryCap: 12,      // backpack capacity (total units across all types)
+    carryCap: 15,      // backpack capacity (total units across all types)
     start: { x: 23, y: 24 }, // just inside the gate
   },
 
