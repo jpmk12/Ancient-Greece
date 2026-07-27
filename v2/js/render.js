@@ -144,6 +144,7 @@ function drawObjects(ctx, state) {
   for (const h of g.hoplites) items.push({ d: h.x + h.y, fn: () => drawDefender(ctx, h, time) });
   for (const a of g.archers) items.push({ d: a.x + a.y, fn: () => drawDefender(ctx, a, time) });
   for (const p of g.porters) items.push({ d: p.x + p.y, fn: () => drawPorter(ctx, p, time) });
+  for (const c of g.coins) items.push({ d: c.x + c.y, fn: () => drawCoin(ctx, c, time) });
 
   const pl = state.player;
   items.push({ d: pl.x + pl.y, fn: () => drawPlayer(ctx, pl) });
@@ -236,18 +237,28 @@ function drawBuilding(ctx, b, g, time) {
   }
   if (b.sells && g) drawWares(ctx, b.x + b.w * 0.5, b.y + b.h + 0.42, time);
 
-  // label + machine-readable tag
+  // name + role subtitle + live functional tag
   const center = proj(b.x + b.w / 2, b.y + b.h / 2);
   const topY = center.y - (baseH + bodyH) - (st.dome ? 26 : st.grand ? 40 : 30);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#3a2c18'; ctx.font = 'bold 12px system-ui, sans-serif';
+  ctx.fillStyle = '#33240f'; ctx.font = 'bold 13px system-ui, sans-serif';
   ctx.fillText(b.name, center.x, topY);
+  if (b.role) {
+    ctx.font = '600 10px system-ui, sans-serif';
+    const rw = ctx.measureText(b.role).width + 12;
+    ctx.fillStyle = 'rgba(20,14,6,0.6)';
+    roundRect(ctx, center.x - rw / 2, topY + 4, rw, 15, 7); ctx.fill();
+    ctx.fillStyle = '#f2e8cf'; ctx.fillText(b.role, center.x, topY + 14.5);
+  }
+  const tagY = topY + 36;
   if (b.input && g && g.buildings[b.key]) {
     const bb = g.buildings[b.key];
     const im = CFG.resourceMeta[b.input], om = CFG.goodsMeta[b.output];
-    drawTag(ctx, center.x, topY + 16, `${im.icon}${Math.floor(bb.stock)}  ▸  ${om.icon}${Math.floor(bb.outStock)}`);
+    drawTag(ctx, center.x, tagY, `${im.icon}${Math.floor(bb.stock)}  ▸  ${om.icon}${Math.floor(bb.outStock)}`);
   } else if (b.sells && g) {
-    drawTag(ctx, center.x, topY + 16, g._sellingNow ? '💰 selling…' : '💰 sell goods');
+    drawTag(ctx, center.x, tagY, g._sellingNow ? '💰 selling…' : '💰 oil & wine');
+  } else if (b.storesFood && g) {
+    drawTag(ctx, center.x, tagY, `🍞 larder ${Math.floor(g.cityFood)}`);
   }
   ctx.textAlign = 'left';
 }
@@ -689,6 +700,22 @@ function drawPorter(ctx, p, time) {
     const col = (CFG.resourceMeta[p.item] || CFG.goodsMeta[p.item]).color;
     drawBasket(ctx, pt.x + 9, pt.y - 6, 12, col, Math.min(1, p.load / CFG.porters.cap));
   }
+}
+
+function drawCoin(ctx, c, time) {
+  const p = proj(c.x, c.y);
+  const bob = 3 + Math.sin(time * 4 + c.x) * 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath(); ell(ctx, p.x, p.y, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+  const w = 4 + Math.abs(Math.cos(time * 3 + c.x)) * 3; // spin
+  const g = ctx.createLinearGradient(p.x - 7, 0, p.x + 7, 0);
+  g.addColorStop(0, '#b8892f'); g.addColorStop(0.5, '#f4d874'); g.addColorStop(1, '#b8892f');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ell(ctx, p.x, p.y - bob, w, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#8a6420'; ctx.lineWidth = 1;
+  ctx.beginPath(); ell(ctx, p.x, p.y - bob, w, 7, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.beginPath(); ell(ctx, p.x - w * 0.3, p.y - bob - 1.5, Math.max(0.5, w * 0.25), 2, 0, 0, Math.PI * 2); ctx.fill();
 }
 
 function drawArrows(ctx, g) {

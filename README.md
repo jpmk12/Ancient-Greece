@@ -11,13 +11,16 @@ built to be played **on an iPad in a web browser** — but it runs on any modern
 browser, desktop or mobile.
 
 > ### 🎮 Two versions
+> - **[`v2/`](v2/) — the isometric, character-driven remake (actively developed).**
+>   You walk an Athenian around an isometric world with a virtual joystick: out
+>   through any of the four **city gates** to gather, back to the workshops to
+>   process (goods **stack up** for collection), to the Agora to sell and the
+>   Acropolis to feed your army, then hire porters and soldiers and **hold the
+>   walls** — slain Spartans drop coins to scoop up. Open `v2/` to play it.
 > - **This page (`index.html`)** — the original **tap-to-gather** game (a fixed
->   side-view board you tap to collect and defend).
-> - **[`v2/`](v2/) — the isometric, character-driven remake.** You walk an
->   Athenian around an isometric world with a virtual joystick: out through the
->   city gate to gather, back to the workshops to process, to the Agora to sell,
->   then hire defenders and hold the walls. Hire porters to automate the
->   logistics. Open `v2/` to play it. This is the actively-developed direction.
+>   side-view board you tap to collect and defend), kept as a reference.
+>
+> ![Aegis of Athens v2 — isometric city of temples](v2/hero.png)
 
 ## How to play
 

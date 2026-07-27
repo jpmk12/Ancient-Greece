@@ -37,6 +37,7 @@ export class Game {
     this.hoplites = [];
     this.archers = [];
     this.arrows = [];
+    this.coins = [];           // drachma pickups dropped by slain Spartans
     this.cityFood = CFG.cityFood.start;
     this.waveIndex = 0;
     this.nextWaveAt = CFG.waves.firstWaveAt;
@@ -96,8 +97,26 @@ export class Game {
     this._playerCombat(dt, player);
     this._foodUpkeep(dt);
     this._porters(dt);
+    this._coins(dt, player);
     this._cleanup(player);
     this._effects(dt);
+  }
+
+  // Coins slide toward the player when close, and bank drachmas on pickup.
+  _coins(dt, player) {
+    const C = CFG.coins;
+    for (const c of this.coins) {
+      c.t += dt;
+      const dx = player.x - c.x, dy = player.y - c.y, d = Math.hypot(dx, dy) || 1;
+      if (d < C.magnet) { c.x += dx / d * C.speed * dt; c.y += dy / d * C.speed * dt; }
+      if (d < C.collect) {
+        c.gone = true;
+        this.drachmas += c.value;
+        this.floater(c.x, c.y, `+${c.value} 🪙`, '#e8c86a');
+        this.playSfx('coin');
+      }
+    }
+    this.coins = this.coins.filter(c => !c.gone && c.t < CFG.coins.life);
   }
 
   // Workshops convert their input buffer into finished goods over time.
@@ -313,7 +332,7 @@ export class Game {
         if (dp > 0.9) { s.x += dpx / dp * S.speed * dt; s.y += dpy / dp * S.speed * dt; }
         else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, S.atkPlayer); }
       } else if (s.y < S.stopY) {
-        s.y += S.speed * dt;                       // march south to the wall
+        s.y = Math.min(S.stopY, s.y + S.speed * dt); // march south, but never past the wall line (gates hold)
       } else if (s.atkCool <= 0) {
         s.atkCool = 1; this.wall.hp = Math.max(0, this.wall.hp - S.atkWall);
         this.floater(s.x, s.y, '💥', '#e0a0a0');
@@ -397,6 +416,13 @@ export class Game {
   }
 
   _cleanup() {
+    // Slain Spartans drop a coin where they fell.
+    for (const s of this.spartans) {
+      if (s.hp <= 0 && !s.dropped) {
+        s.dropped = true;
+        this.coins.push({ x: s.x, y: s.y, value: CFG.coins.base + this.waveIndex * CFG.coins.perWave, t: 0 });
+      }
+    }
     this.spartans = this.spartans.filter(s => s.hp > 0);
     this.hoplites = this.hoplites.filter(h => h.hp > 0);
     this.archers = this.archers.filter(a => a.hp > 0);
@@ -557,7 +583,7 @@ export class Game {
     for (let i = 0; i < (data.archers || 0); i++) this.archers.push(this._makeArcher());
     this._positionDefenders();
     this.porters = (data.porters || []).map(role => ({ id: _uid++, role, x: 22, y: 24, item: null, load: 0, phase: 'seek', target: null }));
-    this.spartans = []; this.arrows = []; this.inWave = false;
+    this.spartans = []; this.arrows = []; this.coins = []; this.inWave = false;
     // player
     if (data.player && player) {
       player.x = data.player.x; player.y = data.player.y;

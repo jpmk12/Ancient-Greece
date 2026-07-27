@@ -15,31 +15,43 @@ export const CFG = {
   // The walled city occupies this outer rectangle (wall ring included).
   city: { x0: 14, y0: 12, x1: 32, y1: 28 },
 
-  // Wall segments (solid), in cell rects {x,y,w,h}. A gap is left on the
-  // south wall for the gate.
+  // Wall segments (solid), in cell rects {x,y,w,h}. Each of the four sides has
+  // a centred gate opening the player can pass through (enemies cannot — they
+  // never advance past the wall line, see spartan AI).
   walls: [
-    { x: 14, y: 12, w: 18, h: 1 },   // north
-    { x: 14, y: 27, w: 6,  h: 1 },   // south-left  (x 14..20)
-    { x: 24, y: 27, w: 8,  h: 1 },   // south-right (x 24..32)
-    { x: 14, y: 13, w: 1,  h: 14 },  // west
-    { x: 31, y: 13, w: 1,  h: 14 },  // east
+    { x: 14, y: 12, w: 8, h: 1 },   // north-left  (x14..22)
+    { x: 24, y: 12, w: 8, h: 1 },   // north-right (x24..32)
+    { x: 14, y: 27, w: 8, h: 1 },   // south-left
+    { x: 24, y: 27, w: 8, h: 1 },   // south-right
+    { x: 14, y: 13, w: 1, h: 6 },   // west-upper  (y13..19)
+    { x: 14, y: 21, w: 1, h: 6 },   // west-lower  (y21..27)
+    { x: 31, y: 13, w: 1, h: 6 },   // east-upper
+    { x: 31, y: 21, w: 1, h: 6 },   // east-lower
   ],
 
-  // The gate opening (for reference / spawn logic). Not solid.
-  gate: { x: 20, y: 27, w: 4, h: 1 },
+  // Gate openings (for reference), one per side. Not solid.
+  gates: [
+    { x: 22, y: 12, w: 2, h: 1, side: 'north' },
+    { x: 22, y: 27, w: 2, h: 1, side: 'south' },
+    { x: 14, y: 19, w: 1, h: 2, side: 'west' },
+    { x: 31, y: 19, w: 1, h: 2, side: 'east' },
+  ],
+  // Slim posts flanking each opening (solid + drawn).
   gatePosts: [
-    { x: 19.4, y: 26.9, w: 0.6, h: 1.1 },
-    { x: 24.0, y: 26.9, w: 0.6, h: 1.1 },
+    { x: 21.6, y: 11.85, w: 0.5, h: 1.15 }, { x: 23.9, y: 11.85, w: 0.5, h: 1.15 },
+    { x: 21.6, y: 26.85, w: 0.5, h: 1.15 }, { x: 23.9, y: 26.85, w: 0.5, h: 1.15 },
+    { x: 13.85, y: 18.6, w: 1.15, h: 0.5 }, { x: 13.85, y: 20.9, w: 1.15, h: 0.5 },
+    { x: 30.85, y: 18.6, w: 1.15, h: 0.5 }, { x: 30.85, y: 20.9, w: 1.15, h: 0.5 },
   ],
 
   // City buildings (solid). `kind` drives colour + later gameplay role.
   // Production buildings take a raw input and make a finished good you collect.
   buildings: [
-    { key: 'press',     name: 'Olive Press', kind: 'press',   x: 16, y: 14, w: 3, h: 2, input: 'olives', output: 'oil'  },
-    { key: 'winery',    name: 'Winery',      kind: 'winery',  x: 21, y: 14, w: 3, h: 2, input: 'grapes', output: 'wine' },
-    { key: 'granary',   name: 'Granary',     kind: 'granary', x: 26, y: 14, w: 3, h: 2, input: 'fish',   output: 'food' },
-    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 21, w: 3, h: 2, sells: true },
-    { key: 'acropolis', name: 'Acropolis',   kind: 'acropolis', x: 24, y: 19, w: 5, h: 4 },
+    { key: 'press',     name: 'Olive Press', kind: 'press',   x: 16, y: 14, w: 3, h: 2, input: 'olives', output: 'oil',  role: 'Drop olives → press oil' },
+    { key: 'winery',    name: 'Winery',      kind: 'winery',  x: 21, y: 14, w: 3, h: 2, input: 'grapes', output: 'wine', role: 'Drop grapes → make wine' },
+    { key: 'granary',   name: 'Granary',     kind: 'granary', x: 26, y: 14, w: 3, h: 2, input: 'fish',   output: 'food', role: 'Drop fish → bake food' },
+    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 21, w: 3, h: 2, sells: true,   role: 'Sell oil & wine for drachmas' },
+    { key: 'acropolis', name: 'Acropolis',   kind: 'acropolis', x: 24, y: 19, w: 5, h: 4, storesFood: true, role: 'Bring food to feed your army' },
   ],
 
   // Harvest nodes (centre coords in cells). You walk up to gather from them.
@@ -81,6 +93,8 @@ export const CFG = {
   },
   cityFood: { start: 20, desertEvery: 4 },   // soldiers eat; empty larder -> desertion
   costs: { hoplite: 40, archer: 55, repair: 25, repairHp: 60 },
+  // Coins dropped by slain Spartans — walk over them (they're drawn to you) to bank drachmas.
+  coins: { base: 6, perWave: 2, life: 26, magnet: 3.2, collect: 1.1, speed: 7 },
   // Where hired defenders stand along the north wall (y=12).
   defenders: { hopY: 12.5, arcY: 13.7, xMin: 15.5, xMax: 30.5 },
 

@@ -1,13 +1,30 @@
 # Aegis of Athens — v2 (isometric, character-driven)
 
+![Aegis of Athens — isometric city of temples with resource stacks](hero.png)
+
 A ground-up reimagining of the game as a **third-person, character-driven**
 experience: you walk an Athenian around an isometric world, out through the
-city gate to gather resources in the countryside, back inside to the workshops
+city gates to gather resources in the countryside, back inside to the workshops
 to process them, and to the Agora to sell — the *Last Asylum* "go out, gather,
-haul it home" loop.
+haul it home" loop. Then you hire soldiers and hold the walls against Sparta.
 
-This is being built in **phases**; the root game (`../index.html`) remains the
-current playable version until v2 reaches feature parity.
+This is the **actively-developed** version; the original tap-to-gather game at
+`../index.html` is kept as a reference.
+
+## The loop at a glance
+1. Walk out through any of the **four gates** into the countryside.
+2. Gather olives 🫒, grapes 🍇 and fish 🐟 into your **backpack**.
+3. Haul them home and **drop them at the workshops** — the Olive Press, Winery
+   and Granary turn them into oil, wine and food, which **pile up as stacks**
+   beside each building.
+4. Carry oil & wine to the **Agora** to sell for **drachmas**; bring food to the
+   **Acropolis** to feed your army.
+5. Spend drachmas on **upgrades, porters and soldiers**.
+6. **Hold the walls** against escalating Spartan assaults — slain Spartans drop
+   **coins** you scoop up for more drachmas. Survive 10 waves to win.
+
+The **gates** let you (and your porters) in and out on every side, but the
+Spartans can never pass them — they batter the walls from outside.
 
 ## Status
 
@@ -70,6 +87,16 @@ character-driven loop: gather → haul → process → sell → upgrade → defe
     of oil, wine jars and loaves of bread — a visual "come collect me" cue with
     a bobbing arrow — plus growing input piles and a basket the character and
     porters visibly carry, filled by their load
+- **Quality-of-life ✅**
+  - **Gates on all four sides** you can walk in and out of; the Spartans are
+    held at the wall line and can never pass through
+  - **Slain Spartans drop coins** that slide toward you — scoop them up for
+    extra drachmas to spend on upgrades
+  - **Clear building roles**: every building shows its name, a one-line job
+    ("Sell oil & wine for drachmas", "Bring food to feed your army") and a live
+    status tag, so the Agora and Acropolis explain themselves
+  - Easier early pacing: first assault at 70s, more time between waves, faster
+    gathering and a bigger backpack
 
 ## Run it
 
