@@ -4,6 +4,7 @@
 // ============================================================================
 
 let ac = null;
+let muted = false;
 const last = {};
 
 export function initAudio() {
@@ -11,6 +12,9 @@ export function initAudio() {
   try { ac = new (window.AudioContext || window.webkitAudioContext)(); }
   catch (e) { ac = null; }
 }
+
+export function setMuted(m) { muted = m; }
+export function isMuted() { return muted; }
 
 const VOICES = {
   coin:   { freq: 880, dur: 0.08, type: 'square',   gain: 0.06 },
@@ -20,7 +24,7 @@ const VOICES = {
 };
 
 export function play(name) {
-  if (!ac) return;
+  if (!ac || muted) return;
   const v = VOICES[name];
   if (!v) return;
   const now = ac.currentTime;

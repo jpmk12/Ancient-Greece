@@ -10,7 +10,7 @@ import { setupInput, getInput } from './input.js';
 import { setupUI } from './ui.js';
 import { updateCamera } from './world.js';
 import { render } from './render.js';
-import { initAudio, play as playSfx } from './sfx.js';
+import { initAudio, play as playSfx, setMuted, isMuted } from './sfx.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -39,6 +39,9 @@ const controls = {
   repairWall: () => state.game.repairWall(),
   buyUpgrade: (key) => state.game.buyUpgrade(key, state.player),
   hirePorter: (role) => state.game.hirePorter(role),
+  togglePause: () => { state.game.paused = !state.game.paused; },
+  toggleMute: () => setMuted(!isMuted()),
+  isMuted: () => isMuted(),
   save: () => saveGame(true),
   restart: () => { try { localStorage.removeItem(CFG.saveKey); } catch (e) {} state.game = new Game(); state.player = new Player(); },
   getGame: () => state.game,
@@ -80,8 +83,10 @@ function frame(now) {
   dt = Math.min(dt, 0.05);
 
   state.time += dt;
-  if (!state.game.over) state.player.update(dt, getInput());
-  state.game.update(dt, state.player);
+  if (!state.game.over && !state.game.paused) {
+    state.player.update(dt, getInput());
+    state.game.update(dt, state.player);
+  }
   updateCamera(state.player.x, state.player.y, viewW, viewH);
 
   // drain queued sound effects

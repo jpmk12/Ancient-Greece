@@ -137,7 +137,7 @@ function drawObjects(ctx, state) {
 
   for (const c of wallCells) items.push({ d: depthOf(c), fn: () => drawWall(ctx, c, wallFrac) });
   for (const p of CFG.gatePosts) items.push({ d: depthOf(p), fn: () => drawPost(ctx, p) });
-  for (const b of CFG.buildings) items.push({ d: depthOf(b) + 0.4, fn: () => drawBuilding(ctx, b, g, time) });
+  for (const b of CFG.buildings) items.push({ d: depthOf(b) + 0.4, fn: () => drawBuilding(ctx, b, g, time, state.player) });
   for (const t of CFG.decoTrees) items.push({ d: t.x + t.y, fn: () => drawOliveTree(ctx, proj(t.x + 0.5, t.y + 0.5), time, t.x, 1, false) });
   for (const n of g.nodes) items.push({ d: n.x + n.y, fn: () => drawNode(ctx, n, g, time) });
   for (const s of g.spartans) items.push({ d: s.x + s.y, fn: () => drawSpartan(ctx, s, time) });
@@ -190,7 +190,7 @@ function drawPost(ctx, p) {
 }
 
 // ---- Temples / workshops --------------------------------------------------
-function drawBuilding(ctx, b, g, time) {
+function drawBuilding(ctx, b, g, time, player) {
   const st = STYLE[b.kind] || STYLE.agora;
   const bodyH = st.grand ? 60 : b.kind === 'agora' ? 30 : 42;
   const baseH = 11;
@@ -237,20 +237,24 @@ function drawBuilding(ctx, b, g, time) {
   }
   if (b.sells && g) drawWares(ctx, b.x + b.w * 0.5, b.y + b.h + 0.42, time);
 
-  // name + role subtitle + live functional tag
+  // name + (proximity) role subtitle + live functional tag
   const center = proj(b.x + b.w / 2, b.y + b.h / 2);
   const topY = center.y - (baseH + bodyH) - (st.dome ? 26 : st.grand ? 40 : 30);
+  // Skip labels when the building sits behind the top HUD band (avoids overlap).
+  if (topY + camera.y <= 118) return;
+
+  const near = player && Math.hypot(player.x - (b.x + b.w / 2), player.y - (b.y + b.h / 2)) < 7;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#33240f'; ctx.font = 'bold 13px system-ui, sans-serif';
   ctx.fillText(b.name, center.x, topY);
-  if (b.role) {
+  if (b.role && near) {
     ctx.font = '600 10px system-ui, sans-serif';
     const rw = ctx.measureText(b.role).width + 12;
     ctx.fillStyle = 'rgba(20,14,6,0.6)';
     roundRect(ctx, center.x - rw / 2, topY + 4, rw, 15, 7); ctx.fill();
     ctx.fillStyle = '#f2e8cf'; ctx.fillText(b.role, center.x, topY + 14.5);
   }
-  const tagY = topY + 36;
+  const tagY = topY + (b.role && near ? 36 : 18);
   if (b.input && g && g.buildings[b.key]) {
     const bb = g.buildings[b.key];
     const im = CFG.resourceMeta[b.input], om = CFG.goodsMeta[b.output];
@@ -781,12 +785,58 @@ function drawHud(ctx, state, viewW, viewH) {
     ctx.fillStyle = '#fff'; ctx.fillText(g.hint.text, viewW / 2, viewH - 99);
     ctx.globalAlpha = 1;
   }
+  drawWaypoint(ctx, state, viewW, viewH);
   drawToasts(ctx, g, viewW);
   drawDrachmas(ctx, g, viewW);
   drawArmyFood(ctx, g, viewW);
   drawBackpack(ctx, pl, viewH);
   drawMinimap(ctx, state);
+  drawPauseVeil(ctx, g, viewW, viewH);
   ctx.restore(); ctx.textAlign = 'left';
+}
+
+// Tutorial hint banner + a waypoint arrow to the current objective.
+function drawWaypoint(ctx, state, viewW, viewH) {
+  const t = state.game.tutorial;
+  if (!t || t.done) return;
+  if (t.text) {
+    ctx.textAlign = 'center'; ctx.font = 'bold 15px system-ui, sans-serif';
+    const w = ctx.measureText(t.text).width + 42;
+    const y = viewH - 150;
+    ctx.fillStyle = 'rgba(20,14,6,0.88)';
+    roundRect(ctx, viewW / 2 - w / 2, y, w, 34, 17); ctx.fill();
+    ctx.strokeStyle = 'rgba(232,200,106,0.7)'; ctx.lineWidth = 2; roundRect(ctx, viewW / 2 - w / 2, y, w, 34, 17); ctx.stroke();
+    ctx.fillStyle = '#f2e8cf'; ctx.fillText('👉 ' + t.text, viewW / 2, y + 22);
+  }
+  if (!t.target) return;
+  const p = proj(t.target.x, t.target.y);
+  const sx = p.x + camera.x, sy = p.y + camera.y;
+  const pulse = 0.5 + 0.5 * Math.sin(state.time * 4);
+  if (sx > 70 && sx < viewW - 70 && sy > 150 && sy < viewH - 190) {
+    ctx.strokeStyle = `rgba(232,200,106,${0.5 + pulse * 0.4})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ell(ctx, sx, sy, 26, 13, 0, 0, Math.PI * 2); ctx.stroke();
+    const by = sy - 46 - pulse * 4;
+    ctx.fillStyle = '#e8c86a';
+    ctx.beginPath(); ctx.moveTo(sx - 9, by); ctx.lineTo(sx + 9, by); ctx.lineTo(sx, by + 12); ctx.closePath(); ctx.fill();
+  } else {
+    const cx = viewW / 2, cy = viewH / 2;
+    const ang = Math.atan2(sy - cy, sx - cx);
+    const rad = Math.min(viewW, viewH) / 2 - 110;
+    const ex = cx + Math.cos(ang) * rad, ey = cy + Math.sin(ang) * rad;
+    ctx.save(); ctx.translate(ex, ey); ctx.rotate(ang);
+    ctx.fillStyle = `rgba(232,200,106,${0.7 + pulse * 0.3})`;
+    ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-8, -13); ctx.lineTo(-2, 0); ctx.lineTo(-8, 13); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawPauseVeil(ctx, g, viewW, viewH) {
+  if (!g.paused) return;
+  ctx.fillStyle = 'rgba(10,14,20,0.5)';
+  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillStyle = '#e8c86a'; ctx.font = 'bold 42px system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('❚❚  Paused', viewW / 2, viewH / 2);
+  ctx.textAlign = 'left';
 }
 
 function drawMinimap(ctx, state) {

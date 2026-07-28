@@ -50,7 +50,7 @@ export const CFG = {
     { key: 'press',     name: 'Olive Press', kind: 'press',   x: 16, y: 14, w: 3, h: 2, input: 'olives', output: 'oil',  role: 'Drop olives → press oil' },
     { key: 'winery',    name: 'Winery',      kind: 'winery',  x: 21, y: 14, w: 3, h: 2, input: 'grapes', output: 'wine', role: 'Drop grapes → make wine' },
     { key: 'granary',   name: 'Granary',     kind: 'granary', x: 26, y: 14, w: 3, h: 2, input: 'fish',   output: 'food', role: 'Drop fish → bake food' },
-    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 21, w: 3, h: 2, sells: true,   role: 'Sell oil & wine for drachmas' },
+    { key: 'agora',     name: 'Agora',       kind: 'agora',   x: 16, y: 18, w: 3, h: 2, sells: true,   role: 'Sell oil & wine for drachmas' },
     { key: 'acropolis', name: 'Acropolis',   kind: 'acropolis', x: 24, y: 19, w: 5, h: 4, storesFood: true, role: 'Bring food to feed your army' },
   ],
 
@@ -59,7 +59,7 @@ export const CFG = {
     { type: 'olives', x: 6.5,  y: 9.5 },  { type: 'olives', x: 9.5,  y: 21.5 }, { type: 'olives', x: 5.5, y: 33.5 },
     { type: 'olives', x: 8.5,  y: 5.5 },  { type: 'olives', x: 3.5,  y: 16.5 }, { type: 'olives', x: 20.5, y: 4.5 },
     { type: 'grapes', x: 39.5, y: 10.5 }, { type: 'grapes', x: 41.5, y: 23.5 }, { type: 'grapes', x: 38.5, y: 33.5 },
-    { type: 'grapes', x: 40.5, y: 6.5 },  { type: 'grapes', x: 43.5, y: 17.5 }, { type: 'grapes', x: 27.5, y: 4.5 },
+    { type: 'grapes', x: 40.5, y: 6.5 },  { type: 'grapes', x: 43.5, y: 17.5 }, { type: 'grapes', x: 36.5, y: 29.5 },
     { type: 'fish',   x: 11.5, y: 36.5 }, { type: 'fish',   x: 19.5, y: 36.5 }, { type: 'fish',   x: 28.5, y: 36.5 },
     { type: 'fish',   x: 35.5, y: 36.5 },
   ],
@@ -75,8 +75,9 @@ export const CFG = {
   deposit: { range: 1.8, interval: 0.10 }, // proximity + seconds per unit (drop off + pick up)
   sell:    { interval: 0.09 },             // seconds per unit sold at the Agora
 
-  // Workshop processing: raw input -> finished good.
-  production: { ratePerSec: 0.75, rawPerGood: 2, outputCap: 30 },
+  // Workshop processing: raw input -> finished good. Snappy at level 1 so
+  // dropping a load gives near-immediate goods (upgrades make it faster still).
+  production: { ratePerSec: 2.2, rawPerGood: 2, outputCap: 30 },
   startDrachmas: 30,
 
   // ---- Defence (Phase 4) ----
@@ -94,7 +95,7 @@ export const CFG = {
   cityFood: { start: 20, desertEvery: 4 },   // soldiers eat; empty larder -> desertion
   costs: { hoplite: 40, archer: 55, repair: 25, repairHp: 60 },
   // Coins dropped by slain Spartans — walk over them (they're drawn to you) to bank drachmas.
-  coins: { base: 6, perWave: 2, life: 26, magnet: 3.2, collect: 1.1, speed: 7 },
+  coins: { base: 6, perWave: 2, life: 40, magnet: 3.2, collect: 1.1, speed: 7 },
   // Where hired defenders stand along the north wall (y=12).
   defenders: { hopY: 12.5, arcY: 13.7, xMin: 15.5, xMax: 30.5 },
 
@@ -136,9 +137,9 @@ export const CFG = {
 
   // Finished goods produced by the workshops and sold at the Agora.
   goodsMeta: {
-    oil:  { icon: '🫗', color: '#d9a441', label: 'Olive Oil', sell: 9  },
-    wine: { icon: '🍷', color: '#8e2b4c', label: 'Wine',      sell: 12 },
-    food: { icon: '🍞', color: '#c9772f', label: 'Food',      sell: 4  },
+    oil:  { icon: '🫗', color: '#d9a441', label: 'Olive Oil', sell: 8  },
+    wine: { icon: '🍷', color: '#8e2b4c', label: 'Wine',      sell: 11 },
+    food: { icon: '🍞', color: '#c9772f', label: 'Food',      sell: 0  }, // not sold — feeds the army
   },
 
   colors: {

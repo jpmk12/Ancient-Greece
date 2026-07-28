@@ -97,6 +97,18 @@ character-driven loop: gather → haul → process → sell → upgrade → defe
     status tag, so the Agora and Acropolis explain themselves
   - Easier early pacing: first assault at 70s, more time between waves, faster
     gathering and a bigger backpack
+- **Polish pass (from a design + code review) ✅**
+  - **Onboarding**: a short scripted tutorial with a **waypoint arrow** that
+    guides a new player through gather → drop → collect → sell
+  - **Tighter loop**: near-instant early processing and the Agora moved into
+    the workshop cluster, so selling is a few steps instead of a cross-city trek
+  - **Pause & mute** buttons; decluttered building labels (the full role line
+    shows only when you're nearby); fixed a HUD/label overlap
+  - Coins left on the field are **auto-salvaged when a wave clears** (no need to
+    run into the kill zone)
+  - Fixes: enemies can no longer clip through walls/gates while chasing;
+    merchant porters & the Agora no longer sell the army's food; reinforcing the
+    walls adds HP instead of being a free full repair
 
 ## Run it
 

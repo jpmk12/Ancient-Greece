@@ -14,6 +14,8 @@ export function setupUI(controls) {
     btn('hire-hoplite', '⚔ Hoplite', CFG.costs.hoplite) +
     btn('hire-archer', '🏹 Archer', CFG.costs.archer) +
     btn('repair-wall', '🛠 Repair', CFG.costs.repair) +
+    btn('pause-game', '⏸ Pause', null) +
+    btn('mute-game', '🔊 Sound', null) +
     btn('save-game', '💾 Save', null);
   document.body.appendChild(dock);
 
@@ -42,6 +44,8 @@ export function setupUI(controls) {
   $('hire-hoplite').onclick = () => controls.hireHoplite();
   $('hire-archer').onclick = () => controls.hireArcher();
   $('repair-wall').onclick = () => controls.repairWall();
+  $('pause-game').onclick = () => controls.togglePause();
+  $('mute-game').onclick = () => controls.toggleMute();
   $('save-game').onclick = () => controls.save();
   $('open-shop').onclick = () => shop.classList.add('show');
   $('close-shop').onclick = () => shop.classList.remove('show');
@@ -61,6 +65,8 @@ export function setupUI(controls) {
   return {
     sync() {
       const g = controls.getGame();
+      const pb = $('pause-game'); if (pb) pb.textContent = g.paused ? '▶ Resume' : '⏸ Pause';
+      const mb = $('mute-game'); if (mb) mb.textContent = controls.isMuted() ? '🔇 Muted' : '🔊 Sound';
       setAfford('hire-hoplite', g.drachmas >= CFG.costs.hoplite);
       setAfford('hire-archer', g.drachmas >= CFG.costs.archer);
       setAfford('repair-wall', g.drachmas >= CFG.costs.repair && g.wall.hp < g.wall.maxHp);

@@ -5,8 +5,10 @@
 // ============================================================================
 
 import { CFG } from './config.js';
+import { collides, insideCity } from './world.js';
 
 let _uid = 1;
+const SELLABLE = ['oil', 'wine']; // goods the Agora buys (food feeds the army instead)
 
 export class Game {
   constructor() {
@@ -47,7 +49,11 @@ export class Game {
     this.overReason = '';
     this.toasts = [];
     this.sfx = [];             // queued sound names, drained by main
+    this.paused = false;
     this._desertAcc = 0;
+    this._deposited = false;   // tutorial progress flags
+    this._soldOnce = false;
+    this.tutorial = { step: 0, done: false, target: null, text: '', _t: 0 };
     // Start with a small garrison.
     this.hireHoplite(true);
     this.archers.push(this._makeArcher()); this._positionDefenders();
@@ -98,8 +104,54 @@ export class Game {
     this._foodUpkeep(dt);
     this._porters(dt);
     this._coins(dt, player);
+    this._tutorial(dt, player);
     this._cleanup(player);
     this._effects(dt);
+  }
+
+  // A light scripted opening that teaches the invisible proximity loop.
+  _tutorial(dt, player) {
+    const t = this.tutorial;
+    if (t.done) { t.target = null; t.text = ''; return; }
+    const raw = player.carry.olives + player.carry.grapes + player.carry.fish;
+    const goods = player.carry.oil + player.carry.wine + player.carry.food;
+    if (t.step === 0) {
+      t.text = 'Walk out a gate 🚪 and gather olives 🫒 from a grove';
+      t.target = this._nearestNodeOfType('olives', player);
+      if (raw > 0) t.step = 1;
+    } else if (t.step === 1) {
+      t.text = 'Haul it home and drop it at the matching workshop';
+      t.target = this._buildingCenter(player.carry.grapes > 0 ? 'winery' : player.carry.fish > 0 ? 'granary' : 'press');
+      if (this._deposited) t.step = 2;
+    } else if (t.step === 2) {
+      t.text = 'Your goods are ready — collect them from the workshop';
+      t.target = this._readyWorkshop();
+      if (goods > 0) t.step = 3;
+    } else if (t.step === 3) {
+      t.text = 'Sell oil & wine at the Agora 💰 for drachmas';
+      t.target = this._buildingCenter('agora');
+      if (this._soldOnce) t.step = 4;
+    } else {
+      t.text = 'Spend drachmas on soldiers ⚔ & upgrades before Sparta strikes!';
+      t.target = null;
+      t._t += dt;
+      if (this.army > 2 || this.waveIndex > 0 || t._t > 14) t.done = true;
+    }
+  }
+
+  _nearestNodeOfType(type, player) {
+    let best = null, bd = Infinity;
+    for (const n of this.nodes) {
+      if (n.type !== type) continue;
+      const d = (n.x - player.x) ** 2 + (n.y - player.y) ** 2;
+      if (d < bd) { bd = d; best = n; }
+    }
+    return best;
+  }
+  _buildingCenter(key) { const b = CFG.buildings.find(x => x.key === key); return b ? { x: b.x + b.w / 2, y: b.y + b.h / 2 } : null; }
+  _readyWorkshop() {
+    for (const k of ['press', 'winery', 'granary']) if (this.buildings[k].outStock >= 1) return this._buildingCenter(k);
+    return this._buildingCenter('press');
   }
 
   // Coins slide toward the player when close, and bank drachmas on pickup.
@@ -173,6 +225,7 @@ export class Game {
       if (player.carry[target.input] <= 0) break;
       player.carry[target.input] -= 1;
       this.buildings[target.key].stock += 1;
+      this._deposited = true;
       const m = CFG.resourceMeta[target.input];
       this.floater(target.x + target.w / 2, target.y, `+1 ${m.icon}`, m.color);
     }
@@ -205,7 +258,8 @@ export class Game {
   _sell(dt, player) {
     this._sellingNow = false;
     if (!this.agora) return;
-    const carryingGoods = ['oil', 'wine', 'food'].some(k => player.carry[k] > 0);
+    // Only oil & wine are sold here — food is reserved for feeding the army.
+    const carryingGoods = SELLABLE.some(k => player.carry[k] > 0);
     if (!carryingGoods) { this._sellAcc = 0; return; }
     if (this._distToRect(player, this.agora) > CFG.deposit.range) { this._sellAcc = 0; return; }
 
@@ -213,11 +267,12 @@ export class Game {
     this._sellAcc += dt;
     while (this._sellAcc >= CFG.sell.interval) {
       this._sellAcc -= CFG.sell.interval;
-      const good = ['oil', 'wine', 'food'].find(k => player.carry[k] > 0);
+      const good = SELLABLE.find(k => player.carry[k] > 0);
       if (!good) break;
       player.carry[good] -= 1;
       const price = CFG.goodsMeta[good].sell;
       this.drachmas += price;
+      this._soldOnce = true;
       this.floater(this.agora.x + this.agora.w / 2, this.agora.y, `+${price} ₪`, '#e8c86a');
       this.playSfx('coin');
     }
@@ -313,8 +368,13 @@ export class Game {
     this.inWave = false;
     this.arrows = [];
     const reward = W.rewardBase + (this.waveIndex - 1) * W.rewardGrowth;
-    this.drachmas += reward;
-    this.toast(`Wave ${this.waveIndex} repelled! +${reward} ₪`, 'good');
+    // Salvage any coins still on the field so you never have to enter the kill zone.
+    let salvage = 0;
+    for (const c of this.coins) salvage += c.value;
+    this.coins = [];
+    this.drachmas += reward + salvage;
+    const extra = salvage > 0 ? ` (+${salvage} salvaged)` : '';
+    this.toast(`Wave ${this.waveIndex} repelled! +${reward} ₪${extra}`, 'good');
     this.nextWaveAt = this.time + W.interval;
     for (const u of [...this.hoplites, ...this.archers]) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.4);
     if (this.waveIndex >= W.victoryWave) { this.won = true; this.over = true; this.overReason = 'victory'; }
@@ -329,8 +389,13 @@ export class Game {
       const dp = Math.hypot(dpx, dpy);
       const chase = dp < S.aggro && player.invuln <= 0;
       if (chase) {
-        if (dp > 0.9) { s.x += dpx / dp * S.speed * dt; s.y += dpy / dp * S.speed * dt; }
-        else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, S.atkPlayer); }
+        if (dp > 0.9) {
+          // Chase, but never through walls/buildings or in through a gate — the
+          // city interior is off-limits to enemies.
+          const nx = s.x + dpx / dp * S.speed * dt, ny = s.y + dpy / dp * S.speed * dt;
+          if (!collides(nx, s.y, S.radius) && !insideCity(nx, s.y)) s.x = nx;
+          if (!collides(s.x, ny, S.radius) && !insideCity(s.x, ny)) s.y = ny;
+        } else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, S.atkPlayer); }
       } else if (s.y < S.stopY) {
         s.y = Math.min(S.stopY, s.y + S.speed * dt); // march south, but never past the wall line (gates hold)
       } else if (s.atkCool <= 0) {
@@ -466,8 +531,10 @@ export class Game {
     if (key === 'carry' && player) player.carryCap = CFG.player.carryCap + this.levels.carry * CFG.upgrades.carry.step;
     if (key === 'speed' && player) player.speed = CFG.player.speed * (1 + this.levels.speed * 0.12);
     if (key === 'wall') {
+      const oldMax = this.wall.maxHp;
       this.wall.maxHp = CFG.wall.maxHp + (this.levels.wall - 1) * CFG.upgrades.wall.step;
-      this.wall.hp = this.wall.maxHp;
+      // Add only the newly-built HP — reinforcing isn't a free full repair.
+      this.wall.hp = Math.min(this.wall.maxHp, this.wall.hp + (this.wall.maxHp - oldMax));
     }
   }
 
@@ -543,6 +610,7 @@ export class Game {
     for (const key in this.buildings) {
       const b = this.buildings[key];
       if (b.outStock < 1) continue;
+      if (!SELLABLE.includes(b.output)) continue; // merchants never sell the army's food
       const cfgB = CFG.buildings.find(k => k.key === key);
       const dx = cfgB.x - p.x, dy = cfgB.y - p.y, d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = b; }
@@ -584,6 +652,7 @@ export class Game {
     this._positionDefenders();
     this.porters = (data.porters || []).map(role => ({ id: _uid++, role, x: 22, y: 24, item: null, load: 0, phase: 'seek', target: null }));
     this.spartans = []; this.arrows = []; this.coins = []; this.inWave = false;
+    this.tutorial.done = true; // returning players skip the opening tutorial
     // player
     if (data.player && player) {
       player.x = data.player.x; player.y = data.player.y;
