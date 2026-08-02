@@ -64,10 +64,19 @@ export const CFG = {
     { type: 'fish',   x: 35.5, y: 36.5 },
   ],
 
-  // Purely decorative scenery.
+  // Purely decorative scenery (depth-sorted objects).
   decoTrees: [
     { type: 'olive', x: 2, y: 6 }, { type: 'olive', x: 44, y: 12 }, { type: 'olive', x: 33, y: 3 },
     { type: 'vine',  x: 2, y: 28 }, { type: 'vine', x: 44, y: 31 },
+    { type: 'olive', x: 11, y: 4 }, { type: 'olive', x: 40, y: 40 }, { type: 'olive', x: 4, y: 41 },
+    { type: 'vine',  x: 34, y: 43 }, { type: 'olive', x: 24, y: 2 },
+  ],
+  decoProps: [
+    { type: 'rock', x: 13, y: 6 }, { type: 'rock', x: 37, y: 5 }, { type: 'rock', x: 5, y: 24 },
+    { type: 'rock', x: 42, y: 35 }, { type: 'rock', x: 29, y: 34 }, { type: 'rock', x: 18, y: 41 },
+    { type: 'bush', x: 9, y: 14 }, { type: 'bush', x: 36, y: 15 }, { type: 'bush', x: 16, y: 7 },
+    { type: 'bush', x: 41, y: 27 }, { type: 'bush', x: 7, y: 33 }, { type: 'bush', x: 31, y: 8 },
+    { type: 'bush', x: 22, y: 6 }, { type: 'bush', x: 45, y: 20 },
   ],
 
   node:    { max: 16, regen: 1.3 },        // stock capacity + regen/sec

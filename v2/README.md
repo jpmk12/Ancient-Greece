@@ -123,6 +123,13 @@ character-driven loop: gather → haul → process → sell → upgrade → defe
   - **Economy** flattened so combat income doesn't dwarf gathering
   - **iPad**: multi-touch no longer hijacks the joystick; safe-area insets keep
     the dock clear of the home indicator; Pause & Mute
+- **World & atmosphere ✅**
+  - **Day/night cycle**: the light shifts from noon to midnight over ~2 minutes
+    — a starlit sky and moon at night, a warm dusk/dawn glow, a soft tint that
+    keeps everything readable (HUD stays crisp)
+  - **Richer countryside**: wildflowers, pebbles, boulders and berry bushes,
+    plus more olive trees and vines — the flat detail is baked into the cached
+    ground (free per frame), the props are depth-sorted so you pass behind them
 
 ## Run it
 

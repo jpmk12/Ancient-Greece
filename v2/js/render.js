@@ -33,9 +33,13 @@ const STYLE = {
   acropolis: { body: '#f3edda', roof: '#c9a34a', grand: true },
 };
 
+const DAY_LEN = 130; // seconds for a full day/night cycle
+function daylight(time) { return 0.5 + 0.5 * Math.cos((time % DAY_LEN) / DAY_LEN * Math.PI * 2); } // 1=noon, 0=midnight
+
 export function render(ctx, state, viewW, viewH) {
   ctx.clearRect(0, 0, viewW, viewH);
-  drawSky(ctx, viewW, viewH);
+  const dl = daylight(state.time);
+  drawSky(ctx, viewW, viewH, dl);
   ensureGround();
 
   // camera shake (from wall hits / rally)
@@ -52,8 +56,16 @@ export function render(ctx, state, viewW, viewH) {
   drawObjects(ctx, state);
   ctx.restore();
 
+  drawNightOverlay(ctx, viewW, viewH, dl); // tint world, but drawn under the HUD
   drawJoystick(ctx);
   drawHud(ctx, state, viewW, viewH);
+}
+
+function drawNightOverlay(ctx, w, h, dl) {
+  const night = 1 - dl;
+  if (night > 0.02) { ctx.fillStyle = `rgba(20,30,66,${night * 0.34})`; ctx.fillRect(0, 0, w, h); }
+  const dusk = 1 - Math.abs(dl - 0.5) * 2; // warm glow at dawn/dusk
+  if (dusk > 0.1) { ctx.fillStyle = `rgba(230,120,60,${dusk * 0.09})`; ctx.fillRect(0, 0, w, h); }
 }
 
 // Static ground is identical every frame, so render it once to an offscreen
@@ -81,14 +93,29 @@ function ensureGround() {
   GROUND.canvas = cv;
 }
 
-// ---- Background sky -------------------------------------------------------
-function drawSky(ctx, w, h) {
+// ---- Background sky (day/night aware) -------------------------------------
+function drawSky(ctx, w, h, dl) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#bfe0f0');
-  g.addColorStop(0.6, '#d8ecdd');
-  g.addColorStop(1, '#e9f2e0');
+  g.addColorStop(0, mix('#101f3e', '#bfe0f0', dl));
+  g.addColorStop(0.6, mix('#22314f', '#d8ecdd', dl));
+  g.addColorStop(1, mix('#293646', '#e9f2e0', dl));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
+  if (dl < 0.5) {
+    const a = (0.5 - dl) * 2;
+    ctx.fillStyle = `rgba(255,255,255,${a * 0.8})`;
+    for (let i = 0; i < 44; i++) {
+      const sx = frac(Math.sin(i * 12.9) * 43758) * w;
+      const sy = frac(Math.sin(i * 78.2) * 12345) * h * 0.42;
+      ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+    ctx.fillStyle = `rgba(255,255,255,${a * 0.12})`; ctx.beginPath(); ctx.arc(w * 0.83, h * 0.16, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(242,240,220,${a})`; ctx.beginPath(); ctx.arc(w * 0.83, h * 0.16, 22, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(210,208,190,${a})`; ctx.beginPath(); ctx.arc(w * 0.80, h * 0.14, 6, 0, Math.PI * 2); ctx.arc(w * 0.86, h * 0.18, 4, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.fillStyle = `rgba(255,244,214,${0.85 * dl})`; ctx.beginPath(); ctx.arc(w * 0.83, h * 0.14, 26, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = `rgba(255,240,190,${0.25 * dl})`; ctx.beginPath(); ctx.arc(w * 0.83, h * 0.14, 40, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 // Static sea fill baked into the cached ground.
@@ -131,7 +158,7 @@ function drawGrassTile(ctx, cx, cy, C) {
     const px = c.x + Math.cos(a) * rad, py = c.y + Math.sin(a) * rad * 0.5;
     ctx.fillRect(px, py, 2, 2);
   }
-  if (r > 0.66) {
+  if (r > 0.66 && r < 0.82) {
     const tx = c.x + (frac(r * 5) - 0.5) * 20, ty = c.y + (frac(r * 7) - 0.5) * 8;
     ctx.strokeStyle = '#5f8a3c'; ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -139,6 +166,17 @@ function drawGrassTile(ctx, cx, cy, C) {
     ctx.moveTo(tx, ty); ctx.lineTo(tx, ty - 6);
     ctx.moveTo(tx, ty); ctx.lineTo(tx + 2, ty - 5);
     ctx.stroke();
+  } else if (r >= 0.82) {
+    // wildflower
+    const fx = c.x + (frac(r * 11) - 0.5) * 22, fy = c.y + (frac(r * 13) - 0.5) * 10;
+    const col = ['#e86a8a', '#e8d24a', '#c98ae0', '#f4f4f4'][Math.floor(frac(r * 17) * 4)] || '#e8d24a';
+    ctx.fillStyle = col;
+    for (let k = 0; k < 4; k++) { const a = k / 4 * Math.PI * 2; ctx.beginPath(); ctx.arc(fx + Math.cos(a) * 2.2, fy + Math.sin(a) * 1.4, 1.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#e8c24a'; ctx.beginPath(); ctx.arc(fx, fy, 1.2, 0, Math.PI * 2); ctx.fill();
+  } else if (r > 0.5 && r < 0.545) {
+    // pebble
+    const px = c.x + (frac(r * 19) - 0.5) * 20, py = c.y + (frac(r * 23) - 0.5) * 9;
+    ctx.fillStyle = 'rgba(150,150,140,0.6)'; ctx.beginPath(); ell(ctx, px, py, 2.4, 1.6, 0, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -169,7 +207,8 @@ function drawObjects(ctx, state) {
   for (const c of wallCells) items.push({ d: depthOf(c), fn: () => drawWall(ctx, c, wallFrac) });
   for (const p of CFG.gatePosts) items.push({ d: depthOf(p), fn: () => drawPost(ctx, p) });
   for (const b of CFG.buildings) items.push({ d: depthOf(b) + 0.4, fn: () => drawBuilding(ctx, b, g, time, state.player) });
-  for (const t of CFG.decoTrees) items.push({ d: t.x + t.y, fn: () => drawOliveTree(ctx, proj(t.x + 0.5, t.y + 0.5), time, t.x, 1, false) });
+  for (const t of CFG.decoTrees) items.push({ d: t.x + t.y, fn: () => (t.type === 'vine' ? drawVineyard(ctx, proj(t.x + 0.5, t.y + 0.5), time, t.x, 1) : drawOliveTree(ctx, proj(t.x + 0.5, t.y + 0.5), time, t.x, 1, false)) });
+  for (const dp of CFG.decoProps) items.push({ d: dp.x + dp.y, fn: () => (dp.type === 'rock' ? drawRock : drawBush)(ctx, proj(dp.x + 0.5, dp.y + 0.5), time, dp.x) });
   for (const n of g.nodes) items.push({ d: n.x + n.y, fn: () => drawNode(ctx, n, g, time) });
   for (const s of g.spartans) items.push({ d: s.x + s.y, fn: () => drawSpartan(ctx, s, time) });
   for (const h of g.hoplites) items.push({ d: h.x + h.y, fn: () => drawDefender(ctx, h, time) });
@@ -629,6 +668,28 @@ function drawFishDock(ctx, p, time, frac) {
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
   const t = time * 3, rr = (t % 1.4) * 18;
   ctx.globalAlpha = Math.max(0, 1 - rr / 26); ctx.beginPath(); ell(ctx,p.x, p.y + 18, rr + 4, (rr + 4) * 0.5, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+}
+
+// ---- Decorative props -----------------------------------------------------
+function drawRock(ctx, p) {
+  ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ell(ctx, p.x, p.y, 15, 7, 0, 0, Math.PI * 2); ctx.fill();
+  const g = ctx.createLinearGradient(p.x - 10, p.y - 16, p.x + 10, p.y);
+  g.addColorStop(0, '#b7b3a8'); g.addColorStop(1, '#7f7b70');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(p.x - 12, p.y); ctx.lineTo(p.x - 8, p.y - 13); ctx.lineTo(p.x + 2, p.y - 16); ctx.lineTo(p.x + 12, p.y - 9); ctx.lineTo(p.x + 11, p.y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath(); ctx.moveTo(p.x - 8, p.y - 13); ctx.lineTo(p.x + 2, p.y - 16); ctx.lineTo(p.x - 2, p.y - 9); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8f8b80'; ctx.beginPath(); ell(ctx, p.x + 13, p.y - 2, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawBush(ctx, p, time, seed) {
+  const sway = Math.sin(time * 1.4 + seed) * 1.2;
+  ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ell(ctx, p.x, p.y, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#4d6b30'; blob(ctx, p.x - 7 + sway, p.y - 8, 9); blob(ctx, p.x + 7 + sway, p.y - 7, 8); blob(ctx, p.x + sway, p.y - 13, 10);
+  ctx.fillStyle = '#6b8f3f'; blob(ctx, p.x - 5 + sway, p.y - 11, 5); blob(ctx, p.x + 5 + sway, p.y - 10, 5);
+  ctx.fillStyle = '#b0405a'; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(p.x + (i - 1) * 5 + sway, p.y - 9, 1.4, 0, Math.PI * 2); ctx.fill(); }
 }
 
 // ---- Character ------------------------------------------------------------
