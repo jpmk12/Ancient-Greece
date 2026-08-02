@@ -15,12 +15,17 @@ html, body {
 /* ---- Hire / repair dock (bottom-right) ---- */
 #hire-dock {
   position: fixed;
-  bottom: 14px;
-  right: 16px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
   display: flex;
   gap: 8px;
   z-index: 20;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  pointer-events: none;
 }
+#hire-dock .hbtn { pointer-events: auto; }
 .hbtn {
   font-family: inherit;
   font-weight: 800;
@@ -78,6 +83,8 @@ html, body {
 /* ---- Upgrade shop panel ---- */
 #shop {
   position: fixed; top: 0; right: 0; bottom: 0;
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-top: env(safe-area-inset-top, 0px);
   width: min(390px, 90vw);
   background: rgba(30, 22, 12, 0.94);
   border-left: 4px solid #b8912f;

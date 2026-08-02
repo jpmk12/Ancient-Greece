@@ -82,20 +82,29 @@ export const CFG = {
 
   // ---- Defence (Phase 4) ----
   wall: { maxHp: 240, hpPerLevel: 90 },
-  // Spartans mass just north of the wall (which sits at cell y=12) and batter it.
-  spartan: { hp: 40, speed: 1.7, atkWall: 6, atkPlayer: 9, radius: 0.42, aggro: 2.2, stopY: 11.1 },
+  // Shared Spartan movement/combat baseline (mass north of the wall at y=12).
+  spartan: { speed: 1.7, atkWall: 6, atkPlayer: 9, radius: 0.42, aggro: 2.2, stopY: 11.1 },
+  // Enemy variants. hp adds waveIndex*hpGrowth; multipliers scale the baseline.
+  enemyTypes: {
+    warrior: { hp: 40, speedMul: 1.0, atkMul: 1.0, coinMul: 1.0, sizeMul: 1.0, body: '#8a1f1f', label: 'warrior' },
+    shield:  { hp: 105, speedMul: 0.62, atkMul: 1.7, coinMul: 1.8, sizeMul: 1.28, body: '#5c3a24', label: 'shield-bearer' },
+    skirmisher: { hp: 20, speedMul: 1.8, atkMul: 0.7, coinMul: 0.7, sizeMul: 0.82, body: '#9a7a24', label: 'skirmisher' },
+  },
   hoplite: { hp: 65, atk: 16, range: 1.6, foodUse: 0.03 },
   archer:  { hp: 34, atk: 10, cooldown: 1.0, range: 7, foodUse: 0.03 },
   playerCombat: { atk: 24, range: 1.5, cooldown: 0.5, maxHealth: 100, regen: 5, invuln: 2.2 },
+  // Rally war-cry: an active ability during a siege.
+  rally: { cooldown: 16, dmg: 30, healFrac: 0.35, range: 12 },
   waves: {
     firstWaveAt: 70, interval: 70,
     baseSize: 4, sizeGrowth: 1.5, hpGrowth: 6,
-    victoryWave: 10, rewardBase: 50, rewardGrowth: 20,
+    victoryWave: 10,             // milestone; the siege then continues endlessly
+    rewardBase: 45, rewardGrowth: 12,
   },
   cityFood: { start: 20, desertEvery: 4 },   // soldiers eat; empty larder -> desertion
   costs: { hoplite: 40, archer: 55, repair: 25, repairHp: 60 },
   // Coins dropped by slain Spartans — walk over them (they're drawn to you) to bank drachmas.
-  coins: { base: 6, perWave: 2, life: 40, magnet: 3.2, collect: 1.1, speed: 7 },
+  coins: { base: 6, perWave: 1, life: 40, magnet: 3.2, collect: 1.1, speed: 7 },
   // Where hired defenders stand along the north wall (y=12).
   defenders: { hopY: 12.5, arcY: 13.7, xMin: 15.5, xMax: 30.5 },
 

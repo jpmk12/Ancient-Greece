@@ -109,6 +109,20 @@ character-driven loop: gather → haul → process → sell → upgrade → defe
   - Fixes: enemies can no longer clip through walls/gates while chasing;
     merchant porters & the Agora no longer sell the army's food; reinforcing the
     walls adds HP instead of being a free full repair
+- **Depth, feel & performance pass ✅**
+  - **Enemy variety**: alongside warriors, **shield-bearers** (slow, armoured,
+    hit the wall hard) and **skirmishers** (fast, fragile) join from waves 3/5
+  - **Endless siege**: wave 10 is now a milestone, not the end — the assaults
+    keep escalating, and the end screen tracks **waves survived + a best score**
+  - **Rally** war-cry (dock button, on a cooldown): strike every Spartan and
+    hearten your defenders — an active verb for the defence phase
+  - **Juice**: camera shake on wall hits & rally, plus burst particles on
+    kills and impacts
+  - **Performance**: the static ground (grass/stone) is pre-rendered once to an
+    offscreen canvas and blitted each frame; only the water animates live
+  - **Economy** flattened so combat income doesn't dwarf gathering
+  - **iPad**: multi-touch no longer hijacks the joystick; safe-area insets keep
+    the dock clear of the home indicator; Pause & Mute
 
 ## Run it
 

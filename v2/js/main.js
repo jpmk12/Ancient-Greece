@@ -39,6 +39,7 @@ const controls = {
   repairWall: () => state.game.repairWall(),
   buyUpgrade: (key) => state.game.buyUpgrade(key, state.player),
   hirePorter: (role) => state.game.hirePorter(role),
+  rally: () => state.game.rally(),
   togglePause: () => { state.game.paused = !state.game.paused; },
   toggleMute: () => setMuted(!isMuted()),
   isMuted: () => isMuted(),

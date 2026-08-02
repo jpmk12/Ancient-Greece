@@ -40,6 +40,11 @@ export class Game {
     this.archers = [];
     this.arrows = [];
     this.coins = [];           // drachma pickups dropped by slain Spartans
+    this.particles = [];       // transient combat particles
+    this.shake = 0;            // camera-shake magnitude
+    this.rallyCd = 0;          // rally ability cooldown
+    this.milestoneShown = false;
+    this.wavesSurvived = 0;
     this.cityFood = CFG.cityFood.start;
     this.waveIndex = 0;
     this.nextWaveAt = CFG.waves.firstWaveAt;
@@ -296,7 +301,34 @@ export class Game {
     this.floaters = this.floaters.filter(f => f.t < f.life);
     for (const t of this.toasts) t.t += dt;
     this.toasts = this.toasts.filter(t => t.t < t.life);
+    for (const p of this.particles) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 6 * dt; }
+    this.particles = this.particles.filter(p => p.t < p.life);
+    this.shake = Math.max(0, this.shake - dt * 18);
+    if (this.rallyCd > 0) this.rallyCd = Math.max(0, this.rallyCd - dt);
     if (this.hint) { this.hint.t += dt; if (this.hint.t > 2.4) this.hint = null; }
+  }
+
+  _spawnParticles(x, y, n, color, up) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3;
+      this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (up > 0 ? 2 : 0.5), color, t: 0, life: 0.5 + Math.random() * 0.35, r: 1.5 + Math.random() * 2 });
+    }
+    if (this.particles.length > 220) this.particles.splice(0, this.particles.length - 220);
+  }
+
+  // Active war-cry: strike every Spartan and hearten the defenders. On a cooldown.
+  rally() {
+    if (this.rallyCd > 0 || this.over) return false;
+    this.rallyCd = CFG.rally.cooldown;
+    let hit = 0;
+    for (const s of this.spartans) {
+      if (s.hp > 0) { s.hp -= CFG.rally.dmg; hit++; if (s.hp <= 0) this._spawnParticles(s.x, s.y, 6, s.body, 1); }
+    }
+    for (const u of [...this.hoplites, ...this.archers]) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * CFG.rally.healFrac);
+    this.shake = Math.min(9, this.shake + 4);
+    this.playSfx('horn');
+    this.toast(hit > 0 ? `⚔ Rally! Struck ${hit} Spartans` : '⚔ Rally! Defenders heartened', 'good');
+    return true;
   }
 
   // ======================================================================
@@ -350,23 +382,41 @@ export class Game {
   }
 
   _startWave() {
-    const W = CFG.waves, d = CFG.defenders;
+    const W = CFG.waves, d = CFG.defenders, S = CFG.spartan;
     this.waveIndex++;
     this.inWave = true;
     const size = Math.round(W.baseSize + (this.waveIndex - 1) * W.sizeGrowth);
     const bonus = (this.waveIndex - 1) * W.hpGrowth;
+    let variety = false;
     for (let i = 0; i < size; i++) {
+      const type = this._pickEnemyType(i);
+      if (type !== 'warrior') variety = true;
+      const et = CFG.enemyTypes[type];
       const x = d.xMin + (i / Math.max(1, size - 1)) * (d.xMax - d.xMin) + (Math.random() * 1.2 - 0.6);
-      this.spartans.push({ id: _uid++, x, y: 1.5 + Math.random() * 3, hp: CFG.spartan.hp + bonus, maxHp: CFG.spartan.hp + bonus, atkCool: Math.random() });
+      const hp = et.hp + bonus;
+      this.spartans.push({
+        id: _uid++, type, body: et.body, sizeMul: et.sizeMul,
+        x, y: 1.5 + Math.random() * 3, hp, maxHp: hp,
+        speed: S.speed * et.speedMul, atkWall: S.atkWall * et.atkMul, atkPlayer: S.atkPlayer * et.atkMul,
+        coinMul: et.coinMul, atkCool: Math.random(),
+      });
     }
-    this.toast(`⚔ Spartan assault — Wave ${this.waveIndex}!`, 'bad');
+    this.toast(`⚔ Spartan assault — Wave ${this.waveIndex}!${variety ? ' New foes among them!' : ''}`, 'bad');
     this.playSfx('horn');
+  }
+
+  _pickEnemyType(i) {
+    const w = this.waveIndex;
+    if (w >= 5 && i % 4 === 0) return 'shield';       // slow armoured wall-breakers
+    if (w >= 3 && i % 3 === 1) return 'skirmisher';   // fast, fragile rushers
+    return 'warrior';
   }
 
   _endWave() {
     const W = CFG.waves;
     this.inWave = false;
     this.arrows = [];
+    this.wavesSurvived = this.waveIndex;
     const reward = W.rewardBase + (this.waveIndex - 1) * W.rewardGrowth;
     // Salvage any coins still on the field so you never have to enter the kill zone.
     let salvage = 0;
@@ -377,7 +427,11 @@ export class Game {
     this.toast(`Wave ${this.waveIndex} repelled! +${reward} ₪${extra}`, 'good');
     this.nextWaveAt = this.time + W.interval;
     for (const u of [...this.hoplites, ...this.archers]) u.hp = Math.min(u.maxHp, u.hp + u.maxHp * 0.4);
-    if (this.waveIndex >= W.victoryWave) { this.won = true; this.over = true; this.overReason = 'victory'; }
+    // Endless: surviving the victory wave is a milestone, not the end.
+    if (this.waveIndex === W.victoryWave && !this.milestoneShown) {
+      this.milestoneShown = true;
+      this.toast('🏛 Athens has endured the great siege! The assaults continue…', 'good');
+    }
   }
 
   _spartanAI(dt, player) {
@@ -392,15 +446,17 @@ export class Game {
         if (dp > 0.9) {
           // Chase, but never through walls/buildings or in through a gate — the
           // city interior is off-limits to enemies.
-          const nx = s.x + dpx / dp * S.speed * dt, ny = s.y + dpy / dp * S.speed * dt;
+          const nx = s.x + dpx / dp * s.speed * dt, ny = s.y + dpy / dp * s.speed * dt;
           if (!collides(nx, s.y, S.radius) && !insideCity(nx, s.y)) s.x = nx;
           if (!collides(s.x, ny, S.radius) && !insideCity(s.x, ny)) s.y = ny;
-        } else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, S.atkPlayer); }
+        } else if (s.atkCool <= 0) { s.atkCool = 1; this._hurtPlayer(player, s.atkPlayer); }
       } else if (s.y < S.stopY) {
-        s.y = Math.min(S.stopY, s.y + S.speed * dt); // march south, but never past the wall line (gates hold)
+        s.y = Math.min(S.stopY, s.y + s.speed * dt); // march south, but never past the wall line (gates hold)
       } else if (s.atkCool <= 0) {
-        s.atkCool = 1; this.wall.hp = Math.max(0, this.wall.hp - S.atkWall);
+        s.atkCool = 1; this.wall.hp = Math.max(0, this.wall.hp - s.atkWall);
         this.floater(s.x, s.y, '💥', '#e0a0a0');
+        this.shake = Math.min(7, this.shake + 1.4);
+        this._spawnParticles(s.x, s.y, 4, '#c9a878', -1);
       }
     }
   }
@@ -481,11 +537,13 @@ export class Game {
   }
 
   _cleanup() {
-    // Slain Spartans drop a coin where they fell.
+    // Slain Spartans drop a coin (scaled by type) and burst where they fell.
     for (const s of this.spartans) {
       if (s.hp <= 0 && !s.dropped) {
         s.dropped = true;
-        this.coins.push({ x: s.x, y: s.y, value: CFG.coins.base + this.waveIndex * CFG.coins.perWave, t: 0 });
+        const value = Math.round((CFG.coins.base + this.waveIndex * CFG.coins.perWave) * (s.coinMul || 1));
+        this.coins.push({ x: s.x, y: s.y, value, t: 0 });
+        this._spawnParticles(s.x, s.y, 7, s.body || '#8a1f1f', 1);
       }
     }
     this.spartans = this.spartans.filter(s => s.hp > 0);
@@ -652,6 +710,9 @@ export class Game {
     this._positionDefenders();
     this.porters = (data.porters || []).map(role => ({ id: _uid++, role, x: 22, y: 24, item: null, load: 0, phase: 'seek', target: null }));
     this.spartans = []; this.arrows = []; this.coins = []; this.inWave = false;
+    this.particles = []; this.shake = 0; this.rallyCd = 0;
+    this.wavesSurvived = this.waveIndex;
+    this.milestoneShown = this.waveIndex >= CFG.waves.victoryWave;
     this.tutorial.done = true; // returning players skip the opening tutorial
     // player
     if (data.player && player) {

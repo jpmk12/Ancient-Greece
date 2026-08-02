@@ -14,6 +14,7 @@ export function setupUI(controls) {
     btn('hire-hoplite', '⚔ Hoplite', CFG.costs.hoplite) +
     btn('hire-archer', '🏹 Archer', CFG.costs.archer) +
     btn('repair-wall', '🛠 Repair', CFG.costs.repair) +
+    btn('rally', '📣 Rally', null) +
     btn('pause-game', '⏸ Pause', null) +
     btn('mute-game', '🔊 Sound', null) +
     btn('save-game', '💾 Save', null);
@@ -44,6 +45,7 @@ export function setupUI(controls) {
   $('hire-hoplite').onclick = () => controls.hireHoplite();
   $('hire-archer').onclick = () => controls.hireArcher();
   $('repair-wall').onclick = () => controls.repairWall();
+  $('rally').onclick = () => controls.rally();
   $('pause-game').onclick = () => controls.togglePause();
   $('mute-game').onclick = () => controls.toggleMute();
   $('save-game').onclick = () => controls.save();
@@ -67,6 +69,7 @@ export function setupUI(controls) {
       const g = controls.getGame();
       const pb = $('pause-game'); if (pb) pb.textContent = g.paused ? '▶ Resume' : '⏸ Pause';
       const mb = $('mute-game'); if (mb) mb.textContent = controls.isMuted() ? '🔇 Muted' : '🔊 Sound';
+      const rb = $('rally'); if (rb) { const cd = Math.ceil(g.rallyCd); rb.textContent = cd > 0 ? `📣 ${cd}s` : '📣 Rally'; rb.classList.toggle('afford', cd <= 0); rb.classList.toggle('poor', cd > 0); }
       setAfford('hire-hoplite', g.drachmas >= CFG.costs.hoplite);
       setAfford('hire-archer', g.drachmas >= CFG.costs.archer);
       setAfford('repair-wall', g.drachmas >= CFG.costs.repair && g.wall.hp < g.wall.maxHp);
@@ -88,12 +91,17 @@ export function setupUI(controls) {
       }
 
       if (g.over && !shown) {
-        const win = g.won;
-        $('modal-title').textContent = win ? '🏛 Athens Endures!' : '🛡 Athens Has Fallen';
-        $('modal-title').className = win ? 'win' : 'lose';
-        $('modal-msg').textContent = win
-          ? `You repelled all ${CFG.waves.victoryWave} Spartan assaults. The polis is saved!`
-          : `${g.overReason || 'The Spartans have breached the city.'} You held for ${g.waveIndex} wave(s).`;
+        const survived = g.wavesSurvived || 0;
+        let best = 0; try { best = +localStorage.getItem('aegis-v2-best') || 0; } catch (e) {}
+        const newBest = survived > best;
+        if (newBest) { try { localStorage.setItem('aegis-v2-best', survived); } catch (e) {} best = survived; }
+        const endured = survived >= CFG.waves.victoryWave;
+        $('modal-title').textContent = endured ? '🏛 A Heroic Stand' : '🛡 Athens Has Fallen';
+        $('modal-title').className = endured ? 'win' : 'lose';
+        $('modal-msg').innerHTML =
+          `${g.overReason || 'The Spartans have breached the city.'}<br><br>` +
+          `You held for <b>${survived}</b> Spartan assault(s).` +
+          (newBest ? ' 🏆 New best!' : ` &nbsp;·&nbsp; Best: ${best}`);
         modal.classList.add('show'); shop.classList.remove('show'); shown = true;
       }
       if (!g.over) shown = false;

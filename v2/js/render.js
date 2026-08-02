@@ -36,15 +36,49 @@ const STYLE = {
 export function render(ctx, state, viewW, viewH) {
   ctx.clearRect(0, 0, viewW, viewH);
   drawSky(ctx, viewW, viewH);
+  ensureGround();
+
+  // camera shake (from wall hits / rally)
+  const shk = state.game.shake || 0;
+  const camX = camera.x + (shk ? (Math.random() * 2 - 1) * shk : 0);
+  const camY = camera.y + (shk ? (Math.random() * 2 - 1) * shk : 0);
+
+  // one cheap blit of the pre-rendered static ground (grass / stone / sea base)
+  ctx.drawImage(GROUND.canvas, Math.round(camX - GROUND.offX), Math.round(camY - GROUND.offY));
 
   ctx.save();
-  ctx.translate(camera.x, camera.y);
-  drawGround(ctx, state, viewW, viewH);
+  ctx.translate(camX, camY);
+  drawSeaShimmer(ctx, state, viewW, viewH); // only the animated water lines
   drawObjects(ctx, state);
   ctx.restore();
 
   drawJoystick(ctx);
   drawHud(ctx, state, viewW, viewH);
+}
+
+// Static ground is identical every frame, so render it once to an offscreen
+// canvas and blit it — the single biggest per-frame saving on mobile.
+const GROUND = { canvas: null, offX: 0, offY: 0 };
+function ensureGround() {
+  if (GROUND.canvas) return;
+  const HW = TW / 2, HH = TH / 2;
+  GROUND.offX = CFG.map.h * HW + 48;
+  GROUND.offY = 48;
+  const w = Math.ceil((CFG.map.w + CFG.map.h) * HW + 96);
+  const h = Math.ceil((CFG.map.w + CFG.map.h) * HH + 96);
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  g.translate(GROUND.offX, GROUND.offY);
+  for (let cy = 0; cy < CFG.map.h; cy++) {
+    for (let cx = 0; cx < CFG.map.w; cx++) {
+      const t = tileType(cx, cy);
+      if (t === 'sea') drawSeaBase(g, cx, cy);
+      else if (t === 'stone') drawStoneTile(g, cx, cy, CFG.colors);
+      else drawGrassTile(g, cx, cy, CFG.colors);
+    }
+  }
+  GROUND.canvas = cv;
 }
 
 // ---- Background sky -------------------------------------------------------
@@ -57,18 +91,28 @@ function drawSky(ctx, w, h) {
   ctx.fillRect(0, 0, w, h);
 }
 
-// ---- Textured ground ------------------------------------------------------
-function drawGround(ctx, state, viewW, viewH) {
-  const C = CFG.colors, time = state.time;
-  for (let cy = 0; cy < CFG.map.h; cy++) {
+// Static sea fill baked into the cached ground.
+function drawSeaBase(ctx, cx, cy) {
+  tileDiamond(ctx, cx, cy);
+  ctx.fillStyle = mix('#2f6d94', '#4a90b8', 0.4);
+  ctx.fill();
+}
+
+// Live water animation — only the visible sea tiles, drawn over the cached base.
+function drawSeaShimmer(ctx, state, viewW, viewH) {
+  const time = state.time;
+  for (let cy = CFG.seaFromY; cy < CFG.map.h; cy++) {
     for (let cx = 0; cx < CFG.map.w; cx++) {
-      const p = proj(cx + 0.5, cy + 0.5);
-      const sx = p.x + camera.x, sy = p.y + camera.y;
+      const c = proj(cx + 0.5, cy + 0.5);
+      const sx = c.x + camera.x, sy = c.y + camera.y;
       if (sx < -TW || sx > viewW + TW || sy < -TH * 2 || sy > viewH + TH * 2) continue;
-      const t = tileType(cx, cy);
-      if (t === 'sea') drawSeaTile(ctx, cx, cy, time);
-      else if (t === 'stone') drawStoneTile(ctx, cx, cy, C);
-      else drawGrassTile(ctx, cx, cy, C);
+      const shimmer = 0.5 + 0.5 * Math.sin(time * 1.5 + cx * 0.6 + cy * 0.4);
+      ctx.globalAlpha = shimmer * 0.14;
+      tileDiamond(ctx, cx, cy); ctx.fillStyle = '#bfe0f0'; ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = `rgba(255,255,255,${0.12 + shimmer * 0.16})`; ctx.lineWidth = 1.5;
+      const wy = c.y + Math.sin(time * 2 + cx) * 2;
+      ctx.beginPath(); ctx.moveTo(c.x - 12, wy); ctx.quadraticCurveTo(c.x, wy - 3, c.x + 12, wy); ctx.stroke();
     }
   }
 }
@@ -116,19 +160,6 @@ function drawStoneTile(ctx, cx, cy, C) {
   tileDiamond(ctx, cx, cy); ctx.stroke();
 }
 
-function drawSeaTile(ctx, cx, cy, time) {
-  tileDiamond(ctx, cx, cy);
-  const shimmer = 0.5 + 0.5 * Math.sin(time * 1.5 + cx * 0.6 + cy * 0.4);
-  ctx.fillStyle = mix('#2f6d94', '#4a90b8', shimmer * 0.7);
-  ctx.fill();
-  const c = proj(cx + 0.5, cy + 0.5);
-  ctx.strokeStyle = `rgba(255,255,255,${0.12 + shimmer * 0.18})`;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  const wy = c.y + Math.sin(time * 2 + cx) * 2;
-  ctx.moveTo(c.x - 12, wy); ctx.quadraticCurveTo(c.x, wy - 3, c.x + 12, wy); ctx.stroke();
-}
-
 // ---- Depth-sorted objects -------------------------------------------------
 function drawObjects(ctx, state) {
   const g = state.game, time = state.time;
@@ -153,7 +184,18 @@ function drawObjects(ctx, state) {
   for (const it of items) it.fn();
 
   drawArrows(ctx, g);
+  drawParticles(ctx, g);
   drawFloaters(ctx, g);
+}
+
+function drawParticles(ctx, g) {
+  for (const p of g.particles) {
+    const pt = proj(p.x, p.y);
+    ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, Math.max(0.5, p.r), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // ---- City wall (stone courses + merlons + damage) -------------------------
@@ -655,20 +697,24 @@ function domCarry(carry) {
 // ---- Combatants -----------------------------------------------------------
 function drawSpartan(ctx, s, time) {
   const p = proj(s.x, s.y);
+  const sc = s.sizeMul || 1;
+  const body = s.body || '#8a1f1f';
   const bob = Math.sin(time * 8 + s.x) * 1.6;
-  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ell(ctx,p.x, p.y, 12, 6, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.save(); ctx.translate(p.x, p.y - bob);
+  ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ell(ctx, p.x, p.y, 12 * sc, 6 * sc, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.translate(p.x, p.y - bob); ctx.scale(sc, sc);
   const g = ctx.createRadialGradient(-3, -15, 2, 0, -12, 12);
-  g.addColorStop(0, '#b23030'); g.addColorStop(1, '#7a1818');
+  g.addColorStop(0, shade(body, 0.24)); g.addColorStop(1, shade(body, -0.14));
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, -12, 11, 0, Math.PI * 2); ctx.fill();
+  // shield-bearers get a heavier rim
+  if (s.type === 'shield') { ctx.strokeStyle = '#3a2a18'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -12, 11, 0, Math.PI * 2); ctx.stroke(); }
   ctx.strokeStyle = '#f0e6c8'; ctx.lineWidth = 2.4;
   ctx.beginPath(); ctx.moveTo(-5, -7); ctx.lineTo(0, -17); ctx.lineTo(5, -7); ctx.stroke();
-  ctx.fillStyle = '#c9302c'; ctx.fillRect(-6, -30, 12, 4);
+  ctx.fillStyle = s.type === 'skirmisher' ? '#e0b83a' : '#c9302c'; ctx.fillRect(-6, -30, 12, 4);
   ctx.fillStyle = '#2a2a2a'; ctx.fillRect(-2, -34, 4, 8);
   ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, -26); ctx.lineTo(13, -2); ctx.stroke();
   ctx.restore();
   const f = s.hp / s.maxHp;
-  if (f < 1) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(p.x - 12, p.y - 40, 24, 4); ctx.fillStyle = '#e05a4f'; ctx.fillRect(p.x - 12, p.y - 40, 24 * f, 4); }
+  if (f < 1) { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(p.x - 12 * sc, p.y - 40 * sc, 24 * sc, 4); ctx.fillStyle = '#e05a4f'; ctx.fillRect(p.x - 12 * sc, p.y - 40 * sc, 24 * sc * f, 4); }
 }
 
 function drawDefender(ctx, u, time) {
