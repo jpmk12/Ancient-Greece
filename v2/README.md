@@ -1,6 +1,6 @@
 # Aegis of Athens — v2 (isometric, character-driven)
 
-![Aegis of Athens — isometric city of temples with resource stacks](hero.png)
+![Aegis of Athens — a wave-5 Spartan assault on the north wall at moonrise, with goods stacked at the workshops](hero.png)
 
 A ground-up reimagining of the game as a **third-person, character-driven**
 experience: you walk an Athenian around an isometric world, out through the
@@ -20,8 +20,10 @@ This is the **actively-developed** version; the original tap-to-gather game at
 4. Carry oil & wine to the **Agora** to sell for **drachmas**; bring food to the
    **Acropolis** to feed your army.
 5. Spend drachmas on **upgrades, porters and soldiers**.
-6. **Hold the walls** against escalating Spartan assaults — slain Spartans drop
-   **coins** you scoop up for more drachmas. Survive 10 waves to win.
+6. **Hold the walls** against escalating Spartan assaults — warriors,
+   shield-bearers and skirmishers. Sound the **Rally** war-cry, and scoop up
+   the **coins** slain Spartans drop. Wave 10 is a milestone; the siege is
+   endless, so chase your best score.
 
 The **gates** let you (and your porters) in and out on every side, but the
 Spartans can never pass them — they batter the walls from outside.
@@ -52,7 +54,7 @@ Spartans can never pass them — they batter the walls from outside.
   - **Sell** oil, wine & food at the **Agora** for **drachmas**, shown in a
     top-right coin purse with `+₪` floaters
   - Completes the full loop: gather → haul → process → haul → sell
-- **Phase 4 — Siege reworked ✅ (this build)**
+- **Phase 4 — Siege reworked ✅**
   - **Spartan waves** march from the north and batter the **city walls**
     (which have HP, damage tinting, and a HUD bar); a breach ends the game
   - Hire **hoplites ⚔ & archers 🏹** (bottom-right dock) who auto-defend the
@@ -62,9 +64,9 @@ Spartans can never pass them — they batter the walls from outside.
     city (dropping half your load)
   - **Food feeds the army** — deliver food to the Acropolis to stock the
     larder; an empty larder starves soldiers into deserting
-  - Escalating waves, drachma rewards per wave, and a **win at 10 waves**;
-    end-game modal with Play Again
-- **Phase 5 — Progression & polish ✅ (this build)**
+  - Escalating waves, drachma rewards per wave, and a milestone at wave 10
+    (the siege is now endless — see below); end-game modal with Play Again
+- **Phase 5 — Progression & polish ✅**
   - **Upgrade shop** (slide-in panel): bigger backpack, faster movement,
     faster workshops (press/winery/granary), and stronger city walls
   - **Porters — the idle layer**: hire *Gatherer* porters that auto-harvest
@@ -139,8 +141,10 @@ python3 -m http.server 8000   # from the repo root
 ```
 
 **Controls:** drag anywhere to walk (a joystick appears under your thumb), or
-use **W A S D** / arrow keys. Head south through the gate to reach the
-countryside.
+use **W A S D** / arrow keys. Walk out through any of the four gates to reach
+the countryside. The bottom dock hires soldiers, repairs the walls, sounds the
+**Rally**, opens **Upgrades**, and has **Pause**, **Sound** and **Save**.
+Progress autosaves to the browser.
 
 ## Files
 
@@ -148,11 +152,17 @@ countryside.
 v2/
   index.html        # full-viewport canvas
   style.css
+  hero.png          # README screenshot
   js/
-    config.js       # map layout, walls, gate, buildings, player tuning
+    config.js       # all tuning: map, walls & gates, buildings, nodes, economy,
+                    #   waves & enemy types, upgrades, porters
     world.js        # iso projection, camera, tile map, collision, draw helpers
     player.js       # character entity: movement, collision, facing
+    game.js         # simulation: gather/process/sell, siege & defenders,
+                    #   porters, upgrades, tutorial, save/load
     input.js        # virtual joystick + keyboard
-    render.js       # isometric renderer (depth-sorted, zero image assets)
-    main.js         # canvas sizing + game loop
+    render.js       # isometric renderer + HUD, day/night (zero image assets)
+    ui.js           # dock buttons, upgrade shop, toasts, end-game modal
+    sfx.js          # synthesised WebAudio sound effects
+    main.js         # canvas sizing, game loop, autosave
 ```

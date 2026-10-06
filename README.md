@@ -16,11 +16,14 @@ browser, desktop or mobile.
 >   through any of the four **city gates** to gather, back to the workshops to
 >   process (goods **stack up** for collection), to the Agora to sell and the
 >   Acropolis to feed your army, then hire porters and soldiers and **hold the
->   walls** — slain Spartans drop coins to scoop up. Open `v2/` to play it.
+>   walls** against an **endless siege** of warriors, shield-bearers and
+>   skirmishers — sound the **Rally** war-cry and scoop up the coins slain
+>   Spartans drop. A guided tutorial, a day/night cycle, autosave and iPad
+>   multi-touch round it out. Open `v2/` to play it.
 > - **This page (`index.html`)** — the original **tap-to-gather** game (a fixed
 >   side-view board you tap to collect and defend), kept as a reference.
 >
-> ![Aegis of Athens v2 — isometric city of temples](v2/hero.png)
+> ![Aegis of Athens v2 — Spartans assault the north wall of an isometric Athens at moonrise](v2/hero.png)
 
 ## How to play
 
